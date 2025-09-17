@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "596749462611",
+    "firebase_url": "https://symme-a0f87-default-rtdb.firebaseio.com",
+    "project_id": "symme-a0f87",
+    "storage_bucket": "symme-a0f87.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:596749462611:android:4656e62a8a89d460742aa6",
+        "android_client_info": {
+          "package_name": "com.gatiella.symmeapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8FkE_Z_GdZ8HBXEP7JNDw3uszrgmcN38"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
