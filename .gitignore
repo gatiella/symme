@@ -1,0 +1,53 @@
+# Remove already-tracked large files and prevent future ones
+
+# Critical: Remove large build artifacts
+.dart_tool/
+build/
+**/build/
+android/.gradle/
+android/app/build/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/intermediates/
+android/app/outputs/
+ios/build/
+ios/Pods/
+macos/build/
+
+# Compiled files that get huge
+**/*.so
+**/*.apk
+**/*.ipa
+**/*.app
+**/*.dill
+*.aab
+
+# Caches and temp files
+.pub-cache/
+.pub/
+**/.gradle/
+**/node_modules/
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Small temp files
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.buildlog/
+.history
+
+# Keep essential files for collaboration:
+# .flutter-plugins-dependencies
+# pubspec.yaml
+# pubspec.lock
+# lib/ folder
+# android/ configs (not build artifacts)
+# ios/ configs (not build artifacts)
