@@ -1,4 +1,4 @@
-// services/call_manager.dart
+// services/call_manager.dart - Fixed version
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:symme/screens/call_screen.dart';
@@ -7,7 +7,6 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/call.dart';
 import '../services/call_service.dart';
 import '../services/webrtc_service.dart';
-import '../services/firebase_message_service.dart';
 import '../services/navigation_service.dart';
 import '../services/presence_service.dart';
 import '../utils/colors.dart';
@@ -26,6 +25,10 @@ class CallManager {
   Call? _currentCall;
   Timer? _ringtoneTimer;
   Timer? _callTimeoutTimer;
+
+  // Track processed calls to prevent duplicates
+  final Set<String> _processedCalls = <String>{};
+  final Set<String> _processedSignals = <String>{};
 
   bool get hasActiveCall => _currentCall != null;
   Call? get currentCall => _currentCall;
@@ -51,7 +54,14 @@ class CallManager {
 
   void _listenForIncomingCalls() {
     _incomingCallSubscription = CallService.incomingCalls.listen(
-      (call) {
+          (call) {
+        // Prevent duplicate processing
+        if (_processedCalls.contains(call.id)) {
+          print('Ignoring duplicate incoming call: ${call.id}');
+          return;
+        }
+
+        _processedCalls.add(call.id);
         print('Received incoming call: ${call.id}');
         _handleIncomingCall(call);
       },
@@ -62,16 +72,24 @@ class CallManager {
   }
 
   void _listenForCallSignals() {
-    _callSignalSubscription = FirebaseMessageService.listenForCallSignals()
-        .listen(
+    _callSignalSubscription = CallService.callSignals.listen(
           (signal) {
-            print('Received call signal: ${signal['type']}');
-            _handleCallSignal(signal);
-          },
-          onError: (error) {
-            print('Error listening for call signals: $error');
-          },
-        );
+        // Generate a unique ID for this signal to prevent duplicates
+        final signalKey = '${signal['callId']}_${signal['type']}_${signal['timestamp']}';
+
+        if (_processedSignals.contains(signalKey)) {
+          print('Ignoring duplicate signal: ${signal['type']} for call ${signal['callId']}');
+          return;
+        }
+
+        _processedSignals.add(signalKey);
+        print('Received call signal: ${signal['type']} for call ${signal['callId']}');
+        _handleCallSignal(signal);
+      },
+      onError: (error) {
+        print('Error listening for call signals: $error');
+      },
+    );
   }
 
   void _handleIncomingCall(Call call) {
@@ -87,52 +105,75 @@ class CallManager {
   }
 
   void _handleCallSignal(Map<String, dynamic> signal) async {
-    final type = signal['type'] as String;
-    final callId = signal['callId'] as String;
-    final data = signal['data'] as Map<String, dynamic>;
-
     try {
+      // Validate signal structure
+      if (!signal.containsKey('type') ||
+          !signal.containsKey('callId') ||
+          !signal.containsKey('data')) {
+        print('Invalid signal structure: missing required fields');
+        return;
+      }
+
+      final type = signal['type'] as String?;
+      final callId = signal['callId'] as String?;
+      final data = signal['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+      if (type == null || callId == null) {
+        print('Invalid signal: type or callId is null');
+        return;
+      }
+
+      print('Processing signal type: $type for call: $callId');
+
       switch (type) {
         case 'offer':
-          // Handle incoming call offer
+        // Handle incoming call offer
           final callType = signal['callType'] == 'video'
               ? CallType.video
               : CallType.audio;
           final call = Call(
             id: callId,
-            callerId: signal['senderId'],
-            receiverId: signal['receiverId'],
+            callerId: signal['senderId'] as String? ?? '',
+            receiverId: signal['receiverId'] as String? ?? '',
             type: callType,
             status: CallStatus.incoming,
             timestamp: DateTime.now(),
           );
-          _handleIncomingCall(call);
+
+          // Store offer data in call metadata
+          final callWithData = call.copyWith(metadata: data);
+          _handleIncomingCall(callWithData);
           break;
 
         case 'answer':
-          // Handle call answer
+        // Handle call answer
           _cancelCallTimeout();
           await _webRTCService.handleCallAnswer(data);
           break;
 
         case 'ice-candidate':
-          // Handle ICE candidate
+        // Handle ICE candidate
           await _webRTCService.handleIceCandidate(data);
           break;
 
         case 'decline':
-          // Handle call decline
+        // Handle call decline
           _handleCallDeclined();
           break;
 
         case 'end':
-          // Handle call end
+        // Handle call end
           _handleCallEnded();
           break;
 
         case 'timeout':
-          // Handle call timeout
-          _handleCallTimeout(data['reason'] as String?);
+        // Handle call timeout
+          final reason = data['reason'] as String?;
+          _handleCallTimeout(reason);
+          break;
+
+        default:
+          print('Unknown signal type: $type');
           break;
       }
     } catch (e) {
@@ -160,7 +201,7 @@ class CallManager {
         return CallResult(
           success: false,
           error:
-              'Microphone not available. Please connect a microphone and try again.',
+          'Microphone not available. Please connect a microphone and try again.',
         );
       }
 
@@ -171,7 +212,7 @@ class CallManager {
           return CallResult(
             success: false,
             error:
-                'Camera not available. Please connect a camera or switch to audio call.',
+            'Camera not available. Please connect a camera or switch to audio call.',
           );
         }
       }
@@ -301,7 +342,15 @@ class CallManager {
       await CallService.answerCall(call.id);
       _showCallScreen(call, isIncoming: true);
 
-      // The WebRTC answer will be handled by the call signal
+      // Handle the WebRTC answer if offer data is available
+      if (call.metadata != null && call.metadata!.isNotEmpty) {
+        await _webRTCService.answerCall(
+          callId: call.id,
+          offerData: call.metadata!,
+          callType: call.type,
+          callerId: call.callerId,
+        );
+      }
     } catch (e) {
       print('Error answering call: $e');
       await WakelockPlus.disable();
@@ -317,6 +366,9 @@ class CallManager {
       _stopRingtone();
       await CallService.declineCall(call.id);
       await _webRTCService.declineCall(call.id);
+
+      // Remove from processed sets
+      _processedCalls.remove(call.id);
       _currentCall = null;
     } catch (e) {
       print('Error declining call: $e');
@@ -335,6 +387,9 @@ class CallManager {
       if (_currentCall != null) {
         await CallService.endCall(_currentCall!.id);
         await _webRTCService.endCall();
+
+        // Remove from processed sets
+        _processedCalls.remove(_currentCall!.id);
         _currentCall = null;
       }
     } catch (e) {
@@ -346,6 +401,10 @@ class CallManager {
     print('Call was declined');
     _stopRingtone();
     _cancelCallTimeout();
+
+    if (_currentCall != null) {
+      _processedCalls.remove(_currentCall!.id);
+    }
     _currentCall = null;
 
     _showMessage('Call declined', isError: false);
@@ -356,6 +415,10 @@ class CallManager {
     _stopRingtone();
     _cancelCallTimeout();
     await WakelockPlus.disable();
+
+    if (_currentCall != null) {
+      _processedCalls.remove(_currentCall!.id);
+    }
     _currentCall = null;
   }
 
@@ -464,6 +527,11 @@ class CallManager {
     _callSignalSubscription?.cancel();
     _stopRingtone();
     _cancelCallTimeout();
+
+    // Clear processed sets
+    _processedCalls.clear();
+    _processedSignals.clear();
+
     _webRTCService.dispose();
     CallService.dispose();
     WakelockPlus.disable();

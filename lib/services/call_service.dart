@@ -1,4 +1,4 @@
-// services/call_service.dart - Realtime Database Version
+// services/call_service.dart - Fixed version
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:symme/services/firebase_auth_service.dart';
@@ -9,9 +9,9 @@ import '../services/presence_service.dart';
 class CallService {
   static final FirebaseDatabase _database = FirebaseDatabase.instance;
   static final StreamController<Call> _incomingCallController =
-      StreamController.broadcast();
+  StreamController.broadcast();
   static final StreamController<Map<String, dynamic>> _callSignalController =
-      StreamController.broadcast();
+  StreamController.broadcast();
 
   static Stream<Call> get incomingCalls => _incomingCallController.stream;
   static Stream<Map<String, dynamic>> get callSignals =>
@@ -20,17 +20,29 @@ class CallService {
   static StreamSubscription<DatabaseEvent>? _callsSubscription;
   static StreamSubscription<DatabaseEvent>? _signalsSubscription;
 
+  // Track processed calls and signals to prevent duplicates
+  static final Set<String> _processedCalls = <String>{};
+  static final Set<String> _processedSignals = <String>{};
+
   // Track pending calls for timeout handling
   static final Map<String, Timer> _pendingCallTimers = {};
 
   static Future<void> initialize() async {
     await PresenceService.initialize();
+
+    // Clear processed sets on initialize
+    _processedCalls.clear();
+    _processedSignals.clear();
+
     await _listenForCalls();
     await _listenForCallSignals();
   }
 
   static Future<void> _listenForCalls() async {
     try {
+      // Cancel existing subscription first
+      await _callsSubscription?.cancel();
+
       final currentUserId = await StorageService.getUserId();
       if (currentUserId == null) return;
 
@@ -41,37 +53,50 @@ class CallService {
           .onValue
           .listen(
             (event) {
-              if (event.snapshot.exists) {
-                final data = event.snapshot.value as Map<dynamic, dynamic>;
+          if (event.snapshot.exists) {
+            final data = event.snapshot.value as Map<dynamic, dynamic>;
 
-                data.forEach((callId, callData) {
-                  if (callData is Map<dynamic, dynamic>) {
-                    final status = callData['status'] as String?;
+            data.forEach((callId, callData) {
+              final callIdStr = callId.toString();
 
-                    if (status == 'incoming') {
-                      try {
-                        final call = Call.fromJson(
-                          Map<String, dynamic>.from(callData),
-                        );
-                        _incomingCallController.add(call);
-                        _setIncomingCallTimeout(callId.toString());
-                        print('Added incoming call: $callId');
-                      } catch (e) {
-                        print('Error parsing incoming call: $e');
-                      }
-                    } else if (status == 'connected' ||
-                        status == 'declined' ||
-                        status == 'ended') {
-                      _cancelCallTimeout(callId.toString());
-                    }
-                  }
-                });
+              // Skip if already processed
+              if (_processedCalls.contains(callIdStr)) {
+                return;
               }
-            },
-            onError: (error) {
-              print('Error listening for calls: $error');
-            },
-          );
+
+              if (callData is Map<dynamic, dynamic>) {
+                final status = callData['status'] as String?;
+
+                if (status == 'incoming') {
+                  try {
+                    final call = Call.fromJson(
+                      Map<String, dynamic>.from(callData),
+                    );
+
+                    // Mark as processed before adding to stream
+                    _processedCalls.add(callIdStr);
+
+                    _incomingCallController.add(call);
+                    _setIncomingCallTimeout(callIdStr);
+                    print('Added incoming call: $callIdStr');
+                  } catch (e) {
+                    print('Error parsing incoming call: $e');
+                  }
+                } else if (status == 'connected' ||
+                    status == 'declined' ||
+                    status == 'ended') {
+                  _cancelCallTimeout(callIdStr);
+                  // Remove from processed when call ends
+                  _processedCalls.remove(callIdStr);
+                }
+              }
+            });
+          }
+        },
+        onError: (error) {
+          print('Error listening for calls: $error');
+        },
+      );
     } catch (e) {
       print('Error setting up call listener: $e');
     }
@@ -79,6 +104,9 @@ class CallService {
 
   static Future<void> _listenForCallSignals() async {
     try {
+      // Cancel existing subscription first
+      await _signalsSubscription?.cancel();
+
       final currentUserId = await StorageService.getUserId();
       if (currentUserId == null) return;
 
@@ -89,29 +117,54 @@ class CallService {
           .onValue
           .listen(
             (event) {
-              if (event.snapshot.exists) {
-                final data = event.snapshot.value as Map<dynamic, dynamic>;
+          if (event.snapshot.exists) {
+            final data = event.snapshot.value as Map<dynamic, dynamic>;
 
-                data.forEach((signalId, signalData) async {
-                  if (signalData is Map<dynamic, dynamic>) {
-                    try {
-                      final signal = Map<String, dynamic>.from(signalData);
-                      _callSignalController.add(signal);
-                      print('Received call signal: ${signal['type']}');
+            data.forEach((signalId, signalData) async {
+              final signalIdStr = signalId.toString();
 
-                      // Delete the signal after processing
-                      await _database.ref('call_signals/$signalId').remove();
-                    } catch (e) {
-                      print('Error processing call signal: $e');
-                    }
-                  }
-                });
+              // Skip if already processed
+              if (_processedSignals.contains(signalIdStr)) {
+                return;
               }
-            },
-            onError: (error) {
-              print('Error listening for call signals: $error');
-            },
-          );
+
+              if (signalData is Map<dynamic, dynamic>) {
+                try {
+                  // Mark as processed immediately
+                  _processedSignals.add(signalIdStr);
+
+                  // Validate signal data structure
+                  final signal = Map<String, dynamic>.from(signalData);
+
+                  // Ensure required fields exist
+                  if (!signal.containsKey('type') ||
+                      !signal.containsKey('callId') ||
+                      !signal.containsKey('data')) {
+                    print('Invalid signal structure: $signal');
+                    return;
+                  }
+
+                  // Ensure data is not null
+                  if (signal['data'] == null) {
+                    signal['data'] = <String, dynamic>{};
+                  }
+
+                  _callSignalController.add(signal);
+                  print('Received call signal: ${signal['type']} for call ${signal['callId']}');
+
+                  // Delete the signal after processing
+                  await _database.ref('call_signals/$signalIdStr').remove();
+                } catch (e) {
+                  print('Error processing call signal: $e');
+                }
+              }
+            });
+          }
+        },
+        onError: (error) {
+          print('Error listening for call signals: $error');
+        },
+      );
     } catch (e) {
       print('Error setting up call signals listener: $e');
     }
@@ -199,13 +252,13 @@ class CallService {
       // Set timeout for outgoing call (30 seconds)
       _setOutgoingCallTimeout(callId);
 
-      // Send the call signal immediately
+      // Send the call signal immediately with proper data structure
       print('Sending call signal...');
       final signalSent = await sendCallSignal(
         receiverId: receiverUserId,
         callId: callId,
         type: 'offer',
-        data: {},
+        data: <String, dynamic>{}, // Ensure data is never null
         callType: callType,
       );
 
@@ -231,7 +284,7 @@ class CallService {
 
       if (receiverCallsSnapshot.snapshot.exists) {
         final data =
-            receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callData in data.values) {
           if (callData is Map<dynamic, dynamic>) {
             final status = callData['status'] as String?;
@@ -253,7 +306,7 @@ class CallService {
 
       if (callerCallsSnapshot.snapshot.exists) {
         final data =
-            callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callData in data.values) {
           if (callData is Map<dynamic, dynamic>) {
             final status = callData['status'] as String?;
@@ -294,9 +347,9 @@ class CallService {
   }
 
   static Future<void> _handleCallTimeout(
-    String callId, {
-    required bool isOutgoing,
-  }) async {
+      String callId, {
+        required bool isOutgoing,
+      }) async {
     try {
       final status = isOutgoing ? 'no_answer' : 'missed';
 
@@ -308,6 +361,7 @@ class CallService {
 
       print('Call $callId marked as $status due to timeout');
       _pendingCallTimers.remove(callId);
+      _processedCalls.remove(callId); // Remove from processed set
 
       // If it was an outgoing call, notify through call signals that it timed out
       if (isOutgoing) {
@@ -315,7 +369,7 @@ class CallService {
           final callSnapshot = await _database.ref('calls/$callId').once();
           if (callSnapshot.snapshot.exists) {
             final callData =
-                callSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            callSnapshot.snapshot.value as Map<dynamic, dynamic>;
             final receiverId = callData['receiverId'] as String;
 
             await sendCallSignal(
@@ -324,7 +378,7 @@ class CallService {
               type: 'timeout',
               data: {'reason': 'no_answer'},
               callType: CallType.values.firstWhere(
-                (e) => e.toString().split('.').last == callData['type'],
+                    (e) => e.toString().split('.').last == callData['type'],
                 orElse: () => CallType.audio,
               ),
             );
@@ -364,6 +418,9 @@ class CallService {
         'endedAt': ServerValue.timestamp,
       });
 
+      // Remove from processed sets
+      _processedCalls.remove(callId);
+
       print('Call declined: $callId');
       return true;
     } catch (e) {
@@ -386,6 +443,10 @@ class CallService {
       }
 
       await _database.ref('calls/$callId').update(updateData);
+
+      // Remove from processed sets
+      _processedCalls.remove(callId);
+
       print('Call ended: $callId');
       return true;
     } catch (e) {
@@ -411,7 +472,7 @@ class CallService {
         'receiverId': receiverId,
         'callId': callId,
         'type': type,
-        'data': data,
+        'data': data ?? <String, dynamic>{}, // Ensure data is never null
         'callType': callType.toString().split('.').last,
         'timestamp': ServerValue.timestamp,
       };
@@ -424,6 +485,8 @@ class CallService {
       return false;
     }
   }
+
+  // ... (rest of the methods remain the same)
 
   static Future<List<Call>> getRecentCalls({int limit = 50}) async {
     try {
@@ -442,7 +505,7 @@ class CallService {
 
       if (callerCallsSnapshot.snapshot.exists) {
         final data =
-            callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         data.forEach((callId, callData) {
           if (callData is Map<dynamic, dynamic>) {
             try {
@@ -465,7 +528,7 @@ class CallService {
 
       if (receiverCallsSnapshot.snapshot.exists) {
         final data =
-            receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         data.forEach((callId, callData) {
           if (callData is Map<dynamic, dynamic>) {
             try {
@@ -495,6 +558,8 @@ class CallService {
         'status': CallStatus.missed.toString().split('.').last,
         'endedAt': ServerValue.timestamp,
       });
+
+      _processedCalls.remove(callId);
     } catch (e) {
       print('Error marking call as missed: $e');
     }
@@ -514,7 +579,7 @@ class CallService {
 
       if (callerCallsSnapshot.snapshot.exists) {
         final data =
-            callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callId in data.keys) {
           await _database.ref('calls/$callId').remove();
         }
@@ -528,11 +593,15 @@ class CallService {
 
       if (receiverCallsSnapshot.snapshot.exists) {
         final data =
-            receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callId in data.keys) {
           await _database.ref('calls/$callId').remove();
         }
       }
+
+      // Clear processed sets
+      _processedCalls.clear();
+      _processedSignals.clear();
 
       print('Call history cleared');
     } catch (e) {
@@ -557,6 +626,7 @@ class CallService {
 
           if (timestamp != null && timestamp < thirtyDaysAgo) {
             await _database.ref('calls/${entry.key}').remove();
+            _processedCalls.remove(entry.key.toString());
           }
         }
       }
@@ -587,6 +657,10 @@ class CallService {
       timer.cancel();
     }
     _pendingCallTimers.clear();
+
+    // Clear processed sets
+    _processedCalls.clear();
+    _processedSignals.clear();
 
     _callsSubscription?.cancel();
     _signalsSubscription?.cancel();

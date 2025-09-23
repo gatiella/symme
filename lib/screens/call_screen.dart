@@ -6,6 +6,7 @@ import '../services/webrtc_service.dart';
 import '../services/call_service.dart';
 import '../utils/helpers.dart';
 import '../utils/colors.dart';
+import '../services/call_manager.dart';
 
 class CallScreen extends StatefulWidget {
   final Call call;
@@ -541,6 +542,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     );
   }
 
+// Only the fixed accept button section from CallScreen
   Widget _buildIncomingCallControls() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -556,18 +558,31 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           icon: Icons.call,
           backgroundColor: AppColors.successGreen,
           size: 70,
-          onPressed: () {
-            setState(() {
-              _callStatus = CallStatus.connecting;
-            });
-            // Accept call logic here
+          onPressed: () async {
+            try {
+              setState(() {
+                _callStatus = CallStatus.connecting;
+              });
+
+              // Answer the call through CallManager
+              await CallManager.instance.answerCall(widget.call);
+
+              print('Call answered successfully');
+            } catch (e) {
+              print('Error accepting call: $e');
+              _showError('Failed to accept call: ${e.toString()}');
+
+              // Reset status on error
+              setState(() {
+                _callStatus = CallStatus.incoming;
+              });
+            }
           },
           label: 'Accept',
         ),
       ],
     );
   }
-
   Widget _buildActiveCallControls() {
     return Wrap(
       alignment: WrapAlignment.center,
