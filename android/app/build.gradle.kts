@@ -16,6 +16,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Add this line to enable core library desugaring
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -31,6 +33,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Add multidex support
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -44,4 +49,19 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Add the dependencies section
+dependencies {
+    // Core library desugaring dependency - updated to 2.1.4 as required
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // Multidx support - correct version is 2.0.1
+    implementation("androidx.multidex:multidex:2.0.1")
+    
+    // ADD THIS: Firebase Messaging dependency
+    implementation("com.google.firebase:firebase-messaging:23.4.0")
+    
+    // ADD THIS: Firebase BOM for version management (optional but recommended)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
 }

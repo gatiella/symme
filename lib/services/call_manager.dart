@@ -103,83 +103,81 @@ class CallManager {
     _startRingtone();
     _showIncomingCallScreen(call);
   }
-
-  void _handleCallSignal(Map<String, dynamic> signal) async {
-    try {
-      // Validate signal structure
-      if (!signal.containsKey('type') ||
-          !signal.containsKey('callId') ||
-          !signal.containsKey('data')) {
-        print('Invalid signal structure: missing required fields');
-        return;
-      }
-
-      final type = signal['type'] as String?;
-      final callId = signal['callId'] as String?;
-      final data = signal['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
-
-      if (type == null || callId == null) {
-        print('Invalid signal: type or callId is null');
-        return;
-      }
-
-      print('Processing signal type: $type for call: $callId');
-
-      switch (type) {
-        case 'offer':
-        // Handle incoming call offer
-          final callType = signal['callType'] == 'video'
-              ? CallType.video
-              : CallType.audio;
-          final call = Call(
-            id: callId,
-            callerId: signal['senderId'] as String? ?? '',
-            receiverId: signal['receiverId'] as String? ?? '',
-            type: callType,
-            status: CallStatus.incoming,
-            timestamp: DateTime.now(),
-          );
-
-          // Store offer data in call metadata
-          final callWithData = call.copyWith(metadata: data);
-          _handleIncomingCall(callWithData);
-          break;
-
-        case 'answer':
-        // Handle call answer
-          _cancelCallTimeout();
-          await _webRTCService.handleCallAnswer(data);
-          break;
-
-        case 'ice-candidate':
-        // Handle ICE candidate
-          await _webRTCService.handleIceCandidate(data);
-          break;
-
-        case 'decline':
-        // Handle call decline
-          _handleCallDeclined();
-          break;
-
-        case 'end':
-        // Handle call end
-          _handleCallEnded();
-          break;
-
-        case 'timeout':
-        // Handle call timeout
-          final reason = data['reason'] as String?;
-          _handleCallTimeout(reason);
-          break;
-
-        default:
-          print('Unknown signal type: $type');
-          break;
-      }
-    } catch (e) {
-      print('Error handling call signal: $e');
+void _handleCallSignal(Map<String, dynamic> signal) async {
+  try {
+    // Validate signal structure
+    if (!signal.containsKey('type') ||
+        !signal.containsKey('callId')) {
+      print('Invalid signal structure: missing required fields');
+      return;
     }
+
+    final type = signal['type'] as String?;
+    final callId = signal['callId'] as String?;
+    
+    // Safe conversion of data field
+    Map<String, dynamic> data = {};
+    if (signal.containsKey('data') && signal['data'] != null) {
+      final rawData = signal['data'];
+      if (rawData is Map) {
+        data = Map<String, dynamic>.from(rawData);
+      }
+    }
+
+    if (type == null || callId == null) {
+      print('Invalid signal: type or callId is null');
+      return;
+    }
+
+    print('Processing signal type: $type for call: $callId');
+
+    switch (type) {
+      case 'offer':
+        final callType = signal['callType'] == 'video'
+            ? CallType.video
+            : CallType.audio;
+        final call = Call(
+          id: callId,
+          callerId: signal['senderId'] as String? ?? '',
+          receiverId: signal['receiverId'] as String? ?? '',
+          type: callType,
+          status: CallStatus.incoming,
+          timestamp: DateTime.now(),
+          metadata: data, // Use safely converted data
+        );
+        _handleIncomingCall(call);
+        break;
+
+      case 'answer':
+        _cancelCallTimeout();
+        await _webRTCService.handleCallAnswer(data);
+        break;
+
+      case 'ice-candidate':
+        await _webRTCService.handleIceCandidate(data);
+        break;
+
+      case 'decline':
+        _handleCallDeclined();
+        break;
+
+      case 'end':
+        _handleCallEnded();
+        break;
+
+      case 'timeout':
+        final reason = data['reason'] as String?;
+        _handleCallTimeout(reason);
+        break;
+
+      default:
+        print('Unknown signal type: $type');
+        break;
+    }
+  } catch (e) {
+    print('Error handling call signal: $e');
   }
+}
 
   Future<CallResult> startCall({
     required String receiverSecureId,

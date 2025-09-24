@@ -120,39 +120,44 @@ class CallService {
           if (event.snapshot.exists) {
             final data = event.snapshot.value as Map<dynamic, dynamic>;
 
-            data.forEach((signalId, signalData) async {
+          data.forEach((signalId, signalData) async {
               final signalIdStr = signalId.toString();
 
-              // Skip if already processed
               if (_processedSignals.contains(signalIdStr)) {
                 return;
               }
 
-              if (signalData is Map<dynamic, dynamic>) {
+              if (signalData is Map) { // Changed from Map<dynamic, dynamic>
                 try {
-                  // Mark as processed immediately
                   _processedSignals.add(signalIdStr);
 
-                  // Validate signal data structure
-                  final signal = Map<String, dynamic>.from(signalData);
+                  // Safe conversion to Map<String, dynamic>
+                  final signal = <String, dynamic>{};
+                  signalData.forEach((key, value) {
+                    signal[key.toString()] = value;
+                  });
 
-                  // Ensure required fields exist
+                  // Ensure required fields exist with safe defaults
                   if (!signal.containsKey('type') ||
-                      !signal.containsKey('callId') ||
-                      !signal.containsKey('data')) {
+                      !signal.containsKey('callId')) {
                     print('Invalid signal structure: $signal');
                     return;
                   }
 
-                  // Ensure data is not null
-                  if (signal['data'] == null) {
+                  // Ensure data field is properly formatted
+                  if (!signal.containsKey('data') || signal['data'] == null) {
                     signal['data'] = <String, dynamic>{};
+                  } else if (signal['data'] is Map && signal['data'] is! Map<String, dynamic>) {
+                    final rawData = signal['data'] as Map;
+                    signal['data'] = <String, dynamic>{};
+                    rawData.forEach((key, value) {
+                      signal['data'][key.toString()] = value;
+                    });
                   }
 
                   _callSignalController.add(signal);
                   print('Received call signal: ${signal['type']} for call ${signal['callId']}');
 
-                  // Delete the signal after processing
                   await _database.ref('call_signals/$signalIdStr').remove();
                 } catch (e) {
                   print('Error processing call signal: $e');

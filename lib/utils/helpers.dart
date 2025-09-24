@@ -31,6 +31,34 @@ class Helpers {
     }
   }
 
+  // Add this missing formatTime method
+  static String formatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final callDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    
+    if (callDate == today) {
+      // Today - show time only
+      final hour = timestamp.hour;
+      final minute = timestamp.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '$displayHour:$minute $period';
+    } else if (callDate == today.subtract(const Duration(days: 1))) {
+      // Yesterday
+      return 'Yesterday';
+    } else if (now.difference(timestamp).inDays < 7) {
+      // This week - show day name
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return weekdays[timestamp.weekday - 1];
+    } else {
+      // Older - show date
+      final month = timestamp.month.toString().padLeft(2, '0');
+      final day = timestamp.day.toString().padLeft(2, '0');
+      return '$month/$day/${timestamp.year}';
+    }
+  }
+
   static String getInitials(String name) {
     if (name.isEmpty) return 'U';
     final words = name.split(' ');
@@ -90,5 +118,15 @@ class Helpers {
     );
   }
 
-  static formatDuration(int i) {}
+  // Fix the formatDuration method that was empty
+  static String formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    
+    if (minutes > 0) {
+      return '${minutes}m ${remainingSeconds}s';
+    } else {
+      return '${remainingSeconds}s';
+    }
+  }
 }

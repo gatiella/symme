@@ -3,6 +3,7 @@ import 'dart:async';
 import '../models/message.dart';
 import '../services/firebase_message_service.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart'; // Add this import
 import '../widgets/chat_bubble.dart';
 import '../utils/helpers.dart';
 import '../utils/colors.dart';
@@ -79,6 +80,7 @@ class _ChatScreenState extends State<ChatScreen>
     _initializeChat();
     _loadDisappearingTimer();
     _loadCurrentUser();
+    _clearNotificationsForThisChat(); // Clear notifications when entering chat
   }
 
   void _setupAnimations() {
@@ -104,6 +106,25 @@ class _ChatScreenState extends State<ChatScreen>
     _messagesSubscription?.cancel();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  // NEW: Clear notifications for this chat when user enters
+  void _clearNotificationsForThisChat() {
+    // Clear notifications related to this specific chat
+    // You might want to implement a more sophisticated notification ID system
+    NotificationService.clearAllNotifications();
+  }
+
+  // UPDATED: Handle app lifecycle changes to manage notifications
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.resumed) {
+      // App is in foreground, clear notifications for this chat
+      _clearNotificationsForThisChat();
+      _markAllMessagesAsRead();
+    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -144,6 +165,9 @@ class _ChatScreenState extends State<ChatScreen>
             if (mounted) {
               setState(() => _messages = messages);
               _scrollToBottom();
+              
+              // Mark messages as read when they arrive
+              _markAllMessagesAsRead();
             }
           },
           onError: (error) {
@@ -153,6 +177,22 @@ class _ChatScreenState extends State<ChatScreen>
             }
           },
         );
+  }
+
+  // NEW: Mark all messages as read
+  Future<void> _markAllMessagesAsRead() async {
+    try {
+      for (final message in _messages) {
+        if (!message.isRead && message.senderId != _currentUserId) {
+          await FirebaseMessageService.markMessageAsRead(
+            message.id,
+            message.senderId,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
   }
 
   Future<void> _loadDisappearingTimer() async {
@@ -187,6 +227,8 @@ class _ChatScreenState extends State<ChatScreen>
     setState(() => _isSending = true);
 
     try {
+      print('Sending message: "${text.length > 50 ? "${text.substring(0, 50)}..." : text}"');
+      
       final success = await FirebaseMessageService.sendMessage(
         receiverSecureId: widget.otherUserSecureId,
         content: text,
@@ -197,11 +239,14 @@ class _ChatScreenState extends State<ChatScreen>
       if (success) {
         _messageController.clear();
         _scrollToBottom();
+        print('Message sent successfully');
       } else {
         Helpers.showSnackBar(context, 'Failed to send message');
+        print('Message sending failed');
       }
     } catch (e) {
       Helpers.showSnackBar(context, 'Error sending message: $e');
+      print('Error sending message: $e');
     } finally {
       if (mounted) {
         setState(() => _isSending = false);

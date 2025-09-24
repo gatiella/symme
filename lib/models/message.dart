@@ -22,39 +22,46 @@ class Message {
     this.isRead = false,
     this.isDelivered = false,
     this.isEncrypted = true,
-    this.expiresInSeconds,
+    this.expiresInSeconds, DateTime? expiresAt,
   });
 
   // Replace your existing fromJson method with this:
-  factory Message.fromJson(Map<String, dynamic> json) {
-    try {
-      return Message(
-        id: json['id'] as String? ?? '',
-        senderId: json['senderId'] as String? ?? '',
-        receiverId: json['receiverId'] as String? ?? '',
-        content: json['content'] as String? ?? '',
-        type: json['type'] is int
-            ? MessageType.values[json['type']]
-            : MessageType.values.firstWhere(
-                (e) => e.name == json['type'],
-                orElse: () => MessageType.text,
-              ),
-        timestamp: json['timestamp'] is int
-            ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'])
-            : json['timestamp'] is String
-            ? DateTime.parse(json['timestamp'])
-            : DateTime.now(),
-        isRead: json['isRead'] as bool? ?? false,
-        isDelivered: json['isDelivered'] as bool? ?? false,
-        isEncrypted: json['isEncrypted'] as bool? ?? true,
-        expiresInSeconds: json['expiresInSeconds'] as int?,
-      );
-    } catch (e) {
-      print('Error in Message.fromJson: $e');
-      print('JSON data: $json');
-      rethrow;
-    }
+factory Message.fromJson(Map<String, dynamic> json) {
+  try {
+    return Message(
+      id: json['id']?.toString() ?? '',
+      senderId: json['senderId']?.toString() ?? '',
+      receiverId: json['receiverId']?.toString() ?? '',
+      content: json['content']?.toString() ?? '[Empty message]',
+      type: MessageType.values[json['type'] as int? ?? 0],
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        json['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      ),
+      isRead: json['isRead'] as bool? ?? false,
+      isDelivered: json['isDelivered'] as bool? ?? true,
+      isEncrypted: json['isEncrypted'] as bool? ?? false,
+      expiresAt: json['expiresAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] as int)
+          : null,
+    );
+  } catch (e) {
+    print('Error parsing message JSON: $e');
+    print('JSON data: $json');
+    
+    // Return a fallback message instead of throwing
+    return Message(
+      id: json['id']?.toString() ?? 'error_${DateTime.now().millisecondsSinceEpoch}',
+      senderId: 'error',
+      receiverId: json['receiverId']?.toString() ?? '',
+      content: '[Failed to parse message]',
+      type: MessageType.text,
+      timestamp: DateTime.now(),
+      isRead: false,
+      isDelivered: false,
+      isEncrypted: false,
+    );
   }
+}
   Message copyWith({
     String? id,
     String? senderId,

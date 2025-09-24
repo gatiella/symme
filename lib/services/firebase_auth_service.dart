@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:symme/services/notification_service.dart';
 import '../services/crypto_service.dart';
 import '../services/storage_service.dart';
 import 'dart:math';
@@ -7,7 +8,7 @@ import 'dart:math';
 class FirebaseAuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final DatabaseReference _database = FirebaseDatabase.instance.ref();
-
+  
   // Anonymous authentication for privacy
   static Future<User?> signInAnonymously() async {
     try {
@@ -22,11 +23,23 @@ class FirebaseAuthService {
         try {
           await _initializeUserData(user.uid);
           print('User data initialized successfully');
+          
+          // UPDATED: Initialize FCM token after successful user creation
+          await updateUserFCMToken(user.uid);
+          print('FCM token initialized for anonymous user');
+          
         } catch (e) {
           print('Warning: User data initialization failed, but auth succeeded: $e');
           // Don't throw here - let the user proceed with basic auth
           // Store basic info locally even if database write fails
           await StorageService.setUserId(user.uid);
+          
+          // Still try to set up FCM token even if other init fails
+          try {
+            await updateUserFCMToken(user.uid);
+          } catch (fcmError) {
+            print('FCM token setup also failed: $fcmError');
+          }
         }
 
         return user;
@@ -65,6 +78,9 @@ class FirebaseAuthService {
           'lastSeen': ServerValue.timestamp,
           'isActive': true,
           'keyGeneratedAt': ServerValue.timestamp,
+          // Initialize FCM token field as null - will be updated separately
+          'fcmToken': null,
+          'tokenUpdatedAt': null,
         };
 
         print('Writing user data to database...');
@@ -90,10 +106,11 @@ class FirebaseAuthService {
         await StorageService.setUserSecureId(secureId);
         await StorageService.setUserId(userId);
         print('Local storage completed');
+        
       } else {
         print('User exists, updating last seen...');
 
-        // Update last seen
+        // Update last seen and reactivate if needed
         await _database.child('users/$userId').update({
           'lastSeen': ServerValue.timestamp,
           'isActive': true,
@@ -112,6 +129,14 @@ class FirebaseAuthService {
 
         await StorageService.setUserId(userId);
         print('Updated existing user successfully');
+        
+        // Update FCM token for returning user
+        try {
+          await updateUserFCMToken(userId);
+          print('Updated FCM token for returning user');
+        } catch (e) {
+          print('Warning: Failed to update FCM token for returning user: $e');
+        }
       }
     } catch (e, stackTrace) {
       print('Error initializing user data: $e');
@@ -130,7 +155,7 @@ class FirebaseAuthService {
       id = String.fromCharCodes(
         Iterable.generate(
           12,
-              (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+          (_) => chars.codeUnitAt(random.nextInt(chars.length)),
         ),
       );
     } while (id.length != 12);
@@ -146,8 +171,7 @@ class FirebaseAuthService {
       // Get current secure ID
       final currentSnapshot = await _database.child('users/${user.uid}').once();
       if (currentSnapshot.snapshot.exists) {
-        final userData =
-        currentSnapshot.snapshot.value as Map<dynamic, dynamic>;
+        final userData = currentSnapshot.snapshot.value as Map<dynamic, dynamic>;
         final oldSecureId = userData['secureId'];
 
         // Deactivate old secure ID
@@ -197,9 +221,7 @@ class FirebaseAuthService {
     }
   }
 
-  static Future<Map<String, dynamic>?> getUserBySecureId(
-      String secureId,
-      ) async {
+  static Future<Map<String, dynamic>?> getUserBySecureId(String secureId) async {
     try {
       // Check if secure ID is active
       final idSnapshot = await _database.child('secureIds/$secureId').once();
@@ -232,6 +254,7 @@ class FirebaseAuthService {
           'publicKey': userData['publicKey'],
           'lastSeen': userData['lastSeen'],
           'isActive': userData['isActive'],
+          'fcmToken': userData['fcmToken'], // Include FCM token
         };
       }
 
@@ -267,12 +290,91 @@ class FirebaseAuthService {
   static Future<void> signOut() async {
     final user = _auth.currentUser;
     if (user != null) {
+      // Mark user as inactive and update last seen
       await _database.child('users/${user.uid}').update({
         'isActive': false,
         'lastSeen': ServerValue.timestamp,
       });
+      
+      // Clear FCM token on sign out for privacy
+      try {
+        await _database.child('users/${user.uid}').update({
+          'fcmToken': null,
+          'tokenUpdatedAt': ServerValue.timestamp,
+        });
+        print('FCM token cleared on sign out');
+      } catch (e) {
+        print('Warning: Failed to clear FCM token on sign out: $e');
+      }
     }
+    
+    // Clear local notifications
+    try {
+      await NotificationService.clearAllNotifications();
+    } catch (e) {
+      print('Warning: Failed to clear notifications on sign out: $e');
+    }
+    
     await _auth.signOut();
+  }
+
+  // UPDATED: FCM Token management for anonymous users
+  static Future<void> updateUserFCMToken(String userId) async {
+    try {
+      print('Getting FCM token for user: $userId');
+      final token = await NotificationService.getFCMToken();
+      
+      if (token != null) {
+        await _database.child('users/$userId').update({
+          'fcmToken': token,
+          'tokenUpdatedAt': ServerValue.timestamp,
+        });
+        print('FCM token updated successfully for user: $userId');
+      } else {
+        print('Warning: FCM token is null for user: $userId');
+      }
+    } catch (e) {
+      print('Error updating FCM token for user $userId: $e');
+      // Don't rethrow - FCM token failure shouldn't break auth flow
+    }
+  }
+  
+  // Get user's FCM token from database
+  static Future<String?> getUserFCMToken(String userId) async {
+    try {
+      final snapshot = await _database.child('users/$userId/fcmToken').once();
+      final token = snapshot.snapshot.value as String?;
+      print('Retrieved FCM token for user $userId: ${token?.substring(0, 20)}...');
+      return token;
+    } catch (e) {
+      print('Error getting user FCM token for $userId: $e');
+      return null;
+    }
+  }
+
+  // UPDATED: Method to refresh FCM token (useful for app updates, etc.)
+  static Future<void> refreshFCMToken() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        print('Refreshing FCM token for current user');
+        await NotificationService.refreshFCMToken();
+        await updateUserFCMToken(user.uid);
+        print('FCM token refreshed successfully');
+      } catch (e) {
+        print('Error refreshing FCM token: $e');
+      }
+    }
+  }
+
+  // NEW: Method to handle token refresh events
+  static void setupFCMTokenRefreshListener() {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // This will be called automatically by the NotificationService
+      // when the token is refreshed, but we can also set up manual refresh
+      updateUserFCMToken(user.uid);
+    }
   }
 
   static User? getCurrentUser() {
@@ -280,4 +382,7 @@ class FirebaseAuthService {
   }
 
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
+  
+  // REMOVED: Email/password methods since you're using anonymous auth
+  // The old signInUser and registerUser methods are not needed for anonymous auth
 }
