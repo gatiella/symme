@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:symme/services/firebase_auth_service.dart';
+import 'package:symme/services/notification_service.dart';
 import '../models/call.dart';
 import '../services/storage_service.dart';
 import '../services/presence_service.dart';
@@ -9,9 +10,9 @@ import '../services/presence_service.dart';
 class CallService {
   static final FirebaseDatabase _database = FirebaseDatabase.instance;
   static final StreamController<Call> _incomingCallController =
-  StreamController.broadcast();
+      StreamController.broadcast();
   static final StreamController<Map<String, dynamic>> _callSignalController =
-  StreamController.broadcast();
+      StreamController.broadcast();
 
   static Stream<Call> get incomingCalls => _incomingCallController.stream;
   static Stream<Map<String, dynamic>> get callSignals =>
@@ -53,50 +54,50 @@ class CallService {
           .onValue
           .listen(
             (event) {
-          if (event.snapshot.exists) {
-            final data = event.snapshot.value as Map<dynamic, dynamic>;
+              if (event.snapshot.exists) {
+                final data = event.snapshot.value as Map<dynamic, dynamic>;
 
-            data.forEach((callId, callData) {
-              final callIdStr = callId.toString();
+                data.forEach((callId, callData) {
+                  final callIdStr = callId.toString();
 
-              // Skip if already processed
-              if (_processedCalls.contains(callIdStr)) {
-                return;
-              }
-
-              if (callData is Map<dynamic, dynamic>) {
-                final status = callData['status'] as String?;
-
-                if (status == 'incoming') {
-                  try {
-                    final call = Call.fromJson(
-                      Map<String, dynamic>.from(callData),
-                    );
-
-                    // Mark as processed before adding to stream
-                    _processedCalls.add(callIdStr);
-
-                    _incomingCallController.add(call);
-                    _setIncomingCallTimeout(callIdStr);
-                    print('Added incoming call: $callIdStr');
-                  } catch (e) {
-                    print('Error parsing incoming call: $e');
+                  // Skip if already processed
+                  if (_processedCalls.contains(callIdStr)) {
+                    return;
                   }
-                } else if (status == 'connected' ||
-                    status == 'declined' ||
-                    status == 'ended') {
-                  _cancelCallTimeout(callIdStr);
-                  // Remove from processed when call ends
-                  _processedCalls.remove(callIdStr);
-                }
+
+                  if (callData is Map<dynamic, dynamic>) {
+                    final status = callData['status'] as String?;
+
+                    if (status == 'incoming') {
+                      try {
+                        final call = Call.fromJson(
+                          Map<String, dynamic>.from(callData),
+                        );
+
+                        // Mark as processed before adding to stream
+                        _processedCalls.add(callIdStr);
+
+                        _incomingCallController.add(call);
+                        _setIncomingCallTimeout(callIdStr);
+                        print('Added incoming call: $callIdStr');
+                      } catch (e) {
+                        print('Error parsing incoming call: $e');
+                      }
+                    } else if (status == 'connected' ||
+                        status == 'declined' ||
+                        status == 'ended') {
+                      _cancelCallTimeout(callIdStr);
+                      // Remove from processed when call ends
+                      _processedCalls.remove(callIdStr);
+                    }
+                  }
+                });
               }
-            });
-          }
-        },
-        onError: (error) {
-          print('Error listening for calls: $error');
-        },
-      );
+            },
+            onError: (error) {
+              print('Error listening for calls: $error');
+            },
+          );
     } catch (e) {
       print('Error setting up call listener: $e');
     }
@@ -117,59 +118,64 @@ class CallService {
           .onValue
           .listen(
             (event) {
-          if (event.snapshot.exists) {
-            final data = event.snapshot.value as Map<dynamic, dynamic>;
+              if (event.snapshot.exists) {
+                final data = event.snapshot.value as Map<dynamic, dynamic>;
 
-          data.forEach((signalId, signalData) async {
-              final signalIdStr = signalId.toString();
+                data.forEach((signalId, signalData) async {
+                  final signalIdStr = signalId.toString();
 
-              if (_processedSignals.contains(signalIdStr)) {
-                return;
-              }
-
-              if (signalData is Map) { // Changed from Map<dynamic, dynamic>
-                try {
-                  _processedSignals.add(signalIdStr);
-
-                  // Safe conversion to Map<String, dynamic>
-                  final signal = <String, dynamic>{};
-                  signalData.forEach((key, value) {
-                    signal[key.toString()] = value;
-                  });
-
-                  // Ensure required fields exist with safe defaults
-                  if (!signal.containsKey('type') ||
-                      !signal.containsKey('callId')) {
-                    print('Invalid signal structure: $signal');
+                  if (_processedSignals.contains(signalIdStr)) {
                     return;
                   }
 
-                  // Ensure data field is properly formatted
-                  if (!signal.containsKey('data') || signal['data'] == null) {
-                    signal['data'] = <String, dynamic>{};
-                  } else if (signal['data'] is Map && signal['data'] is! Map<String, dynamic>) {
-                    final rawData = signal['data'] as Map;
-                    signal['data'] = <String, dynamic>{};
-                    rawData.forEach((key, value) {
-                      signal['data'][key.toString()] = value;
-                    });
+                  if (signalData is Map) {
+                    // Changed from Map<dynamic, dynamic>
+                    try {
+                      _processedSignals.add(signalIdStr);
+
+                      // Safe conversion to Map<String, dynamic>
+                      final signal = <String, dynamic>{};
+                      signalData.forEach((key, value) {
+                        signal[key.toString()] = value;
+                      });
+
+                      // Ensure required fields exist with safe defaults
+                      if (!signal.containsKey('type') ||
+                          !signal.containsKey('callId')) {
+                        print('Invalid signal structure: $signal');
+                        return;
+                      }
+
+                      // Ensure data field is properly formatted
+                      if (!signal.containsKey('data') ||
+                          signal['data'] == null) {
+                        signal['data'] = <String, dynamic>{};
+                      } else if (signal['data'] is Map &&
+                          signal['data'] is! Map<String, dynamic>) {
+                        final rawData = signal['data'] as Map;
+                        signal['data'] = <String, dynamic>{};
+                        rawData.forEach((key, value) {
+                          signal['data'][key.toString()] = value;
+                        });
+                      }
+
+                      _callSignalController.add(signal);
+                      print(
+                        'Received call signal: ${signal['type']} for call ${signal['callId']}',
+                      );
+
+                      await _database.ref('call_signals/$signalIdStr').remove();
+                    } catch (e) {
+                      print('Error processing call signal: $e');
+                    }
                   }
-
-                  _callSignalController.add(signal);
-                  print('Received call signal: ${signal['type']} for call ${signal['callId']}');
-
-                  await _database.ref('call_signals/$signalIdStr').remove();
-                } catch (e) {
-                  print('Error processing call signal: $e');
-                }
+                });
               }
-            });
-          }
-        },
-        onError: (error) {
-          print('Error listening for call signals: $error');
-        },
-      );
+            },
+            onError: (error) {
+              print('Error listening for call signals: $error');
+            },
+          );
     } catch (e) {
       print('Error setting up call signals listener: $e');
     }
@@ -263,7 +269,7 @@ class CallService {
         receiverId: receiverUserId,
         callId: callId,
         type: 'offer',
-        data: <String, dynamic>{}, // Ensure data is never null
+        data: <String, dynamic>{},
         callType: callType,
       );
 
@@ -271,10 +277,71 @@ class CallService {
         print('Warning: Failed to send initial call signal');
       }
 
+      // ADD THIS: Send push notification for incoming call
+      try {
+        await _sendCallNotification(
+          receiverUserId: receiverUserId,
+          callerSecureId: currentUserSecureId,
+          callId: callId,
+          callType: callType,
+        );
+      } catch (e) {
+        print('Warning: Failed to send call notification: $e');
+      }
+
       return call;
     } catch (e) {
       print('Error initiating call: $e');
       rethrow;
+    }
+  }
+
+  // ADD THIS NEW METHOD to call_service.dart
+  static Future<void> _sendCallNotification({
+    required String receiverUserId,
+    required String callerSecureId,
+    required String callId,
+    required CallType callType,
+  }) async {
+    try {
+      // Get receiver's FCM token from Firebase
+      final receiverSnapshot = await _database
+          .ref('users/$receiverUserId/fcmToken')
+          .once();
+      final fcmToken = receiverSnapshot.snapshot.value as String?;
+
+      if (fcmToken == null) {
+        print('No FCM token found for receiver: $receiverUserId');
+        return;
+      }
+
+      // Create call notification
+      final callTypeText = callType == CallType.video
+          ? 'Video call'
+          : 'Voice call';
+      final title = '$callTypeText from $callerSecureId';
+      final body = 'Tap to answer';
+
+      final success = await NotificationService.sendPushNotification(
+        token: fcmToken,
+        title: title,
+        body: body,
+        data: {
+          'type': 'incoming_call',
+          'callId': callId,
+          'callerId': callerSecureId,
+          'callType': callType.toString().split('.').last,
+          'action': 'incoming_call',
+        },
+      );
+
+      if (success) {
+        print('Call notification sent successfully');
+      } else {
+        print('Failed to send call notification');
+      }
+    } catch (e) {
+      print('Error sending call notification: $e');
     }
   }
 
@@ -289,7 +356,7 @@ class CallService {
 
       if (receiverCallsSnapshot.snapshot.exists) {
         final data =
-        receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callData in data.values) {
           if (callData is Map<dynamic, dynamic>) {
             final status = callData['status'] as String?;
@@ -311,7 +378,7 @@ class CallService {
 
       if (callerCallsSnapshot.snapshot.exists) {
         final data =
-        callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callData in data.values) {
           if (callData is Map<dynamic, dynamic>) {
             final status = callData['status'] as String?;
@@ -352,9 +419,9 @@ class CallService {
   }
 
   static Future<void> _handleCallTimeout(
-      String callId, {
-        required bool isOutgoing,
-      }) async {
+    String callId, {
+    required bool isOutgoing,
+  }) async {
     try {
       final status = isOutgoing ? 'no_answer' : 'missed';
 
@@ -374,7 +441,7 @@ class CallService {
           final callSnapshot = await _database.ref('calls/$callId').once();
           if (callSnapshot.snapshot.exists) {
             final callData =
-            callSnapshot.snapshot.value as Map<dynamic, dynamic>;
+                callSnapshot.snapshot.value as Map<dynamic, dynamic>;
             final receiverId = callData['receiverId'] as String;
 
             await sendCallSignal(
@@ -383,7 +450,7 @@ class CallService {
               type: 'timeout',
               data: {'reason': 'no_answer'},
               callType: CallType.values.firstWhere(
-                    (e) => e.toString().split('.').last == callData['type'],
+                (e) => e.toString().split('.').last == callData['type'],
                 orElse: () => CallType.audio,
               ),
             );
@@ -510,7 +577,7 @@ class CallService {
 
       if (callerCallsSnapshot.snapshot.exists) {
         final data =
-        callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         data.forEach((callId, callData) {
           if (callData is Map<dynamic, dynamic>) {
             try {
@@ -533,7 +600,7 @@ class CallService {
 
       if (receiverCallsSnapshot.snapshot.exists) {
         final data =
-        receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         data.forEach((callId, callData) {
           if (callData is Map<dynamic, dynamic>) {
             try {
@@ -584,7 +651,7 @@ class CallService {
 
       if (callerCallsSnapshot.snapshot.exists) {
         final data =
-        callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            callerCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callId in data.keys) {
           await _database.ref('calls/$callId').remove();
         }
@@ -598,7 +665,7 @@ class CallService {
 
       if (receiverCallsSnapshot.snapshot.exists) {
         final data =
-        receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
+            receiverCallsSnapshot.snapshot.value as Map<dynamic, dynamic>;
         for (final callId in data.keys) {
           await _database.ref('calls/$callId').remove();
         }

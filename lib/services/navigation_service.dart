@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 
 class NavigationService {
-  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  // Import the global navigator key from main.dart
+  static GlobalKey<NavigatorState>? _navigatorKey;
 
-  static void initialize() {
-    // No initialization needed for this simple service
+  // Initialize with the navigator key from main.dart
+  static void initialize(GlobalKey<NavigatorState> navigatorKey) {
+    _navigatorKey = navigatorKey;
   }
 
-  static BuildContext get currentContext => navigatorKey.currentContext!;
+  static GlobalKey<NavigatorState> get navigatorKey {
+    if (_navigatorKey == null) {
+      throw Exception(
+        'NavigationService not initialized. Call NavigationService.initialize() first.',
+      );
+    }
+    return _navigatorKey!;
+  }
 
-  static Future<T?>? push<T extends Object?>(
-    Widget page,
-  ) {
-    return navigatorKey.currentState?.push<T>(
+  static BuildContext? get currentContext => _navigatorKey?.currentContext;
+
+  static Future<T?>? push<T extends Object?>(Widget page) {
+    return _navigatorKey?.currentState?.push<T>(
       MaterialPageRoute(builder: (context) => page),
     );
   }
@@ -20,12 +29,26 @@ class NavigationService {
   static Future<T?>? pushReplacement<T extends Object?, TO extends Object?>(
     Widget page,
   ) {
-    return navigatorKey.currentState?.pushReplacement<T, TO>(
+    return _navigatorKey?.currentState?.pushReplacement<T, TO>(
       MaterialPageRoute(builder: (context) => page),
     );
   }
 
   static void pop<T extends Object?>([T? result]) {
-    return navigatorKey.currentState?.pop<T>(result);
+    return _navigatorKey?.currentState?.pop<T>(result);
+  }
+
+  static Future<T?>? pushNamed<T extends Object?>(
+    String routeName, {
+    Object? arguments,
+  }) {
+    return _navigatorKey?.currentState?.pushNamed<T>(
+      routeName,
+      arguments: arguments,
+    );
+  }
+
+  static void popUntil(bool Function(Route<dynamic>) predicate) {
+    return _navigatorKey?.currentState?.popUntil(predicate);
   }
 }

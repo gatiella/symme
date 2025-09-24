@@ -1,4 +1,3 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 
@@ -62,14 +61,16 @@ class FirebaseMessageService {
 
       final messageId = CryptoService.generateMessageId();
       final now = DateTime.now();
-      final expirationSeconds = expiresInSeconds ?? (7 * 24 * 60 * 60); // 7 days default
+      final expirationSeconds =
+          expiresInSeconds ?? (7 * 24 * 60 * 60); // 7 days default
 
       // Create encrypted message for RECEIVER (stored encrypted in database)
       final receiverMessageData = {
         'id': messageId,
         'senderId': sender.uid,
         'receiverId': receiverId,
-        'content': encryptionResult['encryptedMessage']!, // Store encrypted content
+        'content':
+            encryptionResult['encryptedMessage']!, // Store encrypted content
         'type': type.index,
         'timestamp': now.millisecondsSinceEpoch,
         'isRead': false,
@@ -80,7 +81,9 @@ class FirebaseMessageService {
         'senderSecureId': senderSecureId,
         'receiverSecureId': receiverSecureId,
         'expiresInSeconds': expirationSeconds,
-        'expiresAt': now.add(Duration(seconds: expirationSeconds)).millisecondsSinceEpoch,
+        'expiresAt': now
+            .add(Duration(seconds: expirationSeconds))
+            .millisecondsSinceEpoch,
       };
 
       // Create unencrypted message for SENDER (for their own viewing)
@@ -97,38 +100,39 @@ class FirebaseMessageService {
         'senderSecureId': senderSecureId,
         'receiverSecureId': receiverSecureId,
         'expiresInSeconds': expirationSeconds,
-        'expiresAt': now.add(Duration(seconds: expirationSeconds)).millisecondsSinceEpoch,
+        'expiresAt': now
+            .add(Duration(seconds: expirationSeconds))
+            .millisecondsSinceEpoch,
       };
 
-        print('Writing messages to database...');
-        try {
-          // Write both messages atomically
-          await Future.wait([
-            // Write encrypted message to receiver's inbox
-            _database
-                .child('messages/$receiverId/${sender.uid}/$messageId')
-                .set(receiverMessageData),
-            // Write unencrypted message to sender's outbox
-            _database
-                .child('messages/${sender.uid}/$receiverId/$messageId')
-                .set(senderMessageData),
-          ]);
-          
-          print('Messages written successfully');
-          
-          // Verify the write
-          final verifySnapshot = await _database
+      print('Writing messages to database...');
+      try {
+        // Write both messages atomically
+        await Future.wait([
+          // Write encrypted message to receiver's inbox
+          _database
+              .child('messages/$receiverId/${sender.uid}/$messageId')
+              .set(receiverMessageData),
+          // Write unencrypted message to sender's outbox
+          _database
               .child('messages/${sender.uid}/$receiverId/$messageId')
-              .once();
-          
-          if (!verifySnapshot.snapshot.exists) {
-            throw Exception('Message write verification failed');
-          }
-          
-        } catch (e) {
-          print('Error writing messages to database: $e');
-          throw Exception('Failed to save message: $e');
+              .set(senderMessageData),
+        ]);
+
+        print('Messages written successfully');
+
+        // Verify the write
+        final verifySnapshot = await _database
+            .child('messages/${sender.uid}/$receiverId/$messageId')
+            .once();
+
+        if (!verifySnapshot.snapshot.exists) {
+          throw Exception('Message write verification failed');
         }
+      } catch (e) {
+        print('Error writing messages to database: $e');
+        throw Exception('Failed to save message: $e');
+      }
 
       // Update chat rooms
       final lastMessageForChat = Message(
@@ -143,8 +147,18 @@ class FirebaseMessageService {
 
       try {
         await Future.wait([
-          _updateChatRoom(sender.uid, receiverId, lastMessageForChat, receiverSecureId),
-          _updateChatRoom(receiverId, sender.uid, lastMessageForChat, senderSecureId),
+          _updateChatRoom(
+            sender.uid,
+            receiverId,
+            lastMessageForChat,
+            receiverSecureId,
+          ),
+          _updateChatRoom(
+            receiverId,
+            sender.uid,
+            lastMessageForChat,
+            senderSecureId,
+          ),
         ]);
       } catch (e) {
         print('WARNING: Chat room update failed: $e');
@@ -152,7 +166,12 @@ class FirebaseMessageService {
 
       // Send push notification to receiver
       try {
-        await _sendNotificationToUser(receiverId, senderSecureId, content, type);
+        await _sendNotificationToUser(
+          receiverId,
+          senderSecureId,
+          content,
+          type,
+        );
       } catch (e) {
         print('WARNING: Notification sending failed: $e');
       }
@@ -171,12 +190,16 @@ class FirebaseMessageService {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return Stream.value([]);
 
-    return _getUserBySecureId(otherUserSecureId).asStream().asyncExpand((otherUserData) {
+    return _getUserBySecureId(otherUserSecureId).asStream().asyncExpand((
+      otherUserData,
+    ) {
       if (otherUserData == null) return Stream.value(<Message>[]);
 
       final otherUserId = otherUserData['userId'] as String;
 
-      return _database.child('messages/${currentUser.uid}/$otherUserId').onValue.asyncMap((event) async {
+      return _database.child('messages/${currentUser.uid}/$otherUserId').onValue.asyncMap((
+        event,
+      ) async {
         final data = event.snapshot.value as Map<dynamic, dynamic>?;
         if (data == null) return <Message>[];
 
@@ -186,36 +209,46 @@ class FirebaseMessageService {
 
         print('Processing ${data.length} messages...');
 
-          for (final messageEntry in data.entries) {
-            try {
-              final messageData = Map<String, dynamic>.from(messageEntry.value);
-              
-              // Add null checks and defaults
-              messageData['id'] = messageData['id'] ?? messageEntry.key.toString();
-              messageData['senderId'] = messageData['senderId'] ?? 'unknown';
-              messageData['receiverId'] = messageData['receiverId'] ?? currentUserId;
-              messageData['content'] = messageData['content'] ?? '[Empty message]';
-              messageData['type'] = messageData['type'] ?? 0;
-              messageData['timestamp'] = messageData['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
-              messageData['isRead'] = messageData['isRead'] ?? false;
-              messageData['isDelivered'] = messageData['isDelivered'] ?? true;
-              messageData['isEncrypted'] = messageData['isEncrypted'] ?? false;
-              
-              print('Processing message ID: ${messageEntry.key}');
-              print('Message isEncrypted: ${messageData['isEncrypted']}');
-              print('Message senderId: ${messageData['senderId']}, currentUserId: $currentUserId');
+        for (final messageEntry in data.entries) {
+          try {
+            final messageData = Map<String, dynamic>.from(messageEntry.value);
+
+            // Add null checks and defaults
+            messageData['id'] =
+                messageData['id'] ?? messageEntry.key.toString();
+            messageData['senderId'] = messageData['senderId'] ?? 'unknown';
+            messageData['receiverId'] =
+                messageData['receiverId'] ?? currentUserId;
+            messageData['content'] =
+                messageData['content'] ?? '[Empty message]';
+            messageData['type'] = messageData['type'] ?? 0;
+            messageData['timestamp'] =
+                messageData['timestamp'] ??
+                DateTime.now().millisecondsSinceEpoch;
+            messageData['isRead'] = messageData['isRead'] ?? false;
+            messageData['isDelivered'] = messageData['isDelivered'] ?? true;
+            messageData['isEncrypted'] = messageData['isEncrypted'] ?? false;
+
+            print('Processing message ID: ${messageEntry.key}');
+            print('Message isEncrypted: ${messageData['isEncrypted']}');
+            print(
+              'Message senderId: ${messageData['senderId']}, currentUserId: $currentUserId',
+            );
 
             // Decrypt message if needed (when current user is the receiver and message is encrypted)
-            if (messageData['isEncrypted'] == true && messageData['senderId'] != currentUserId) {
+            if (messageData['isEncrypted'] == true &&
+                messageData['senderId'] != currentUserId) {
               print('Message needs decryption...');
-              
-              if (privateKey != null && messageData['encryptedCombination'] != null) {
+
+              if (privateKey != null &&
+                  messageData['encryptedCombination'] != null) {
                 try {
-                  final decryptedContent = CryptoService.decryptMessageWithCombination(
-                    messageData['content'],
-                    messageData['encryptedCombination'],
-                    privateKey,
-                  );
+                  final decryptedContent =
+                      CryptoService.decryptMessageWithCombination(
+                        messageData['content'],
+                        messageData['encryptedCombination'],
+                        privateKey,
+                      );
 
                   if (decryptedContent != null && decryptedContent.isNotEmpty) {
                     messageData['content'] = decryptedContent;
@@ -233,27 +266,30 @@ class FirebaseMessageService {
                 print('❌ Missing privateKey or encryptedCombination');
               }
             } else {
-              print('ℹ️ Message doesn\'t need decryption (sender copy or unencrypted)');
+              print(
+                'ℹ️ Message doesn\'t need decryption (sender copy or unencrypted)',
+              );
             }
 
             // Create message object
             final message = Message.fromJson(messageData);
             messages.add(message);
-
           } catch (e, stackTrace) {
             print('Error parsing message ${messageEntry.key}: $e');
             print('Stack trace: $stackTrace');
-            
+
             // Add error placeholder
-            messages.add(Message(
-              id: messageEntry.key.toString(),
-              senderId: 'error',
-              receiverId: currentUser.uid,
-              content: '[Message parsing failed]',
-              type: MessageType.text,
-              timestamp: DateTime.now(),
-              isEncrypted: false,
-            ));
+            messages.add(
+              Message(
+                id: messageEntry.key.toString(),
+                senderId: 'error',
+                receiverId: currentUser.uid,
+                content: '[Message parsing failed]',
+                type: MessageType.text,
+                timestamp: DateTime.now(),
+                isEncrypted: false,
+              ),
+            );
           }
         }
 
@@ -266,7 +302,9 @@ class FirebaseMessageService {
   }
 
   // Helper method to get user by secure ID
-  static Future<Map<String, dynamic>?> _getUserBySecureId(String secureId) async {
+  static Future<Map<String, dynamic>?> _getUserBySecureId(
+    String secureId,
+  ) async {
     return await FirebaseAuthService.getUserBySecureId(secureId);
   }
 
@@ -281,7 +319,9 @@ class FirebaseMessageService {
       final chatRoomId = CryptoService.generateRoomId(userId1, userId2);
 
       // Get display name for other user
-      final otherUserData = await FirebaseAuthService.getUserBySecureId(otherUserSecureId);
+      final otherUserData = await FirebaseAuthService.getUserBySecureId(
+        otherUserSecureId,
+      );
       final displayName = otherUserData?['secureId'] ?? otherUserSecureId;
 
       // Create preview of last message
@@ -309,16 +349,18 @@ class FirebaseMessageService {
 
   // NEW: Send push notification to user
   static Future<void> _sendNotificationToUser(
-    String receiverId, 
-    String senderSecureId, 
+    String receiverId,
+    String senderSecureId,
     String messageContent,
     MessageType messageType,
   ) async {
     try {
       // Get receiver's FCM token
-      final receiverSnapshot = await _database.child('users/$receiverId/fcmToken').once();
+      final receiverSnapshot = await _database
+          .child('users/$receiverId/fcmToken')
+          .once();
       final fcmToken = receiverSnapshot.snapshot.value as String?;
-      
+
       if (fcmToken == null) {
         print('No FCM token found for receiver');
         return;
@@ -327,18 +369,18 @@ class FirebaseMessageService {
       // Create notification payload
       String notificationTitle = 'New message from $senderSecureId';
       String notificationBody;
-      
+
       if (messageType == MessageType.text) {
         // For notifications, show a preview but don't decrypt (for privacy)
-        notificationBody = messageContent.length > 100 
-            ? '${messageContent.substring(0, 100)}...' 
+        notificationBody = messageContent.length > 100
+            ? '${messageContent.substring(0, 100)}...'
             : messageContent;
       } else {
         notificationBody = 'Sent a ${messageType.name}';
       }
 
-      // Send notification via your notification service
-      await NotificationService.sendPushNotification(
+      // UPDATED: Use the new sendPushNotification method
+      final success = await NotificationService.sendPushNotification(
         token: fcmToken,
         title: notificationTitle,
         body: notificationBody,
@@ -350,13 +392,21 @@ class FirebaseMessageService {
         },
       );
 
+      if (success) {
+        print('Push notification sent successfully');
+      } else {
+        print('Failed to send push notification');
+      }
     } catch (e) {
       print('Error sending notification: $e');
     }
   }
 
   // Mark message as read
-  static Future<void> markMessageAsRead(String messageId, String otherUserId) async {
+  static Future<void> markMessageAsRead(
+    String messageId,
+    String otherUserId,
+  ) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
@@ -375,7 +425,9 @@ class FirebaseMessageService {
     if (currentUser == null) return;
 
     try {
-      final snapshot = await _database.child('messages/${currentUser.uid}').once();
+      final snapshot = await _database
+          .child('messages/${currentUser.uid}')
+          .once();
       final data = snapshot.snapshot.value as Map<dynamic, dynamic>?;
 
       if (data != null) {
@@ -391,7 +443,9 @@ class FirebaseMessageService {
             if (expiresAt != null && now > expiresAt) {
               try {
                 await _database
-                    .child('messages/${currentUser.uid}/${chatEntry.key}/${messageEntry.key}')
+                    .child(
+                      'messages/${currentUser.uid}/${chatEntry.key}/${messageEntry.key}',
+                    )
                     .remove();
                 print('Deleted expired message: ${messageEntry.key}');
               } catch (e) {
@@ -411,7 +465,9 @@ class FirebaseMessageService {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return Stream.value([]);
 
-    return _database.child('chatRooms/${currentUser.uid}').onValue.asyncMap((event) async {
+    return _database.child('chatRooms/${currentUser.uid}').onValue.asyncMap((
+      event,
+    ) async {
       final data = event.snapshot.value as Map<dynamic, dynamic>?;
       if (data == null) return <Map<String, dynamic>>[];
 
@@ -424,7 +480,9 @@ class FirebaseMessageService {
           final otherUserSecureId = chatData['otherUserSecureId'] as String?;
 
           if (otherUserSecureId != null) {
-            final otherUserData = await FirebaseAuthService.getUserBySecureId(otherUserSecureId);
+            final otherUserData = await FirebaseAuthService.getUserBySecureId(
+              otherUserSecureId,
+            );
 
             chatRooms.add({
               'otherUserId': otherUserId,
@@ -454,7 +512,10 @@ class FirebaseMessageService {
   }
 
   // Delete message
-  static Future<bool> deleteMessage(String messageId, String otherUserId) async {
+  static Future<bool> deleteMessage(
+    String messageId,
+    String otherUserId,
+  ) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return false;
 
@@ -475,8 +536,12 @@ class FirebaseMessageService {
     if (currentUser == null) return false;
 
     try {
-      await _database.child('messages/${currentUser.uid}/$otherUserId').remove();
-      await _database.child('chatRooms/${currentUser.uid}/$otherUserId').remove();
+      await _database
+          .child('messages/${currentUser.uid}/$otherUserId')
+          .remove();
+      await _database
+          .child('chatRooms/${currentUser.uid}/$otherUserId')
+          .remove();
       return true;
     } catch (e) {
       print('Error clearing chat: $e');
@@ -485,7 +550,7 @@ class FirebaseMessageService {
   }
 
   // ===== CALL SIGNAL METHODS (UNCHANGED) =====
-  
+
   static Future<bool> sendCallSignal({
     required String receiverId,
     required String callId,
@@ -504,9 +569,12 @@ class FirebaseMessageService {
 
       String actualReceiverId = receiverId;
 
-      if (receiverId.length == 12 && RegExp(r'^[A-Z0-9]+$').hasMatch(receiverId)) {
+      if (receiverId.length == 12 &&
+          RegExp(r'^[A-Z0-9]+$').hasMatch(receiverId)) {
         print('Converting secure ID to user ID: $receiverId');
-        final receiverData = await FirebaseAuthService.getUserBySecureId(receiverId);
+        final receiverData = await FirebaseAuthService.getUserBySecureId(
+          receiverId,
+        );
         if (receiverData != null) {
           actualReceiverId = receiverData['userId'] as String;
           print('Found user ID: $actualReceiverId');
@@ -539,55 +607,61 @@ class FirebaseMessageService {
   static Stream<Map<String, dynamic>> listenForCallSignals() {
     print('Setting up call signals listener');
 
-    final StreamController<Map<String, dynamic>> controller = 
+    final StreamController<Map<String, dynamic>> controller =
         StreamController<Map<String, dynamic>>.broadcast();
 
     StreamSubscription<DatabaseEvent>? subscription;
 
-    StorageService.getUserId().then((currentUserId) {
-      if (currentUserId == null) {
-        print('No current user ID for call signals');
-        controller.close();
-        return;
-      }
+    StorageService.getUserId()
+        .then((currentUserId) {
+          if (currentUserId == null) {
+            print('No current user ID for call signals');
+            controller.close();
+            return;
+          }
 
-      print('Listening for call signals for user: $currentUserId');
+          print('Listening for call signals for user: $currentUserId');
 
-      subscription = _database
-          .child('call_signals')
-          .orderByChild('receiverId')
-          .equalTo(currentUserId)
-          .onValue
-          .listen(
-            (event) {
-              if (event.snapshot.exists) {
-                final data = event.snapshot.value as Map<dynamic, dynamic>;
+          subscription = _database
+              .child('call_signals')
+              .orderByChild('receiverId')
+              .equalTo(currentUserId)
+              .onValue
+              .listen(
+                (event) {
+                  if (event.snapshot.exists) {
+                    final data = event.snapshot.value as Map<dynamic, dynamic>;
 
-                data.forEach((signalId, signalData) async {
-                  if (signalData is Map<dynamic, dynamic>) {
-                    try {
-                      final signal = Map<String, dynamic>.from(signalData);
-                      print('Received call signal: ${signal['type']} for call ${signal['callId']}');
+                    data.forEach((signalId, signalData) async {
+                      if (signalData is Map<dynamic, dynamic>) {
+                        try {
+                          final signal = Map<String, dynamic>.from(signalData);
+                          print(
+                            'Received call signal: ${signal['type']} for call ${signal['callId']}',
+                          );
 
-                      controller.add(signal);
+                          controller.add(signal);
 
-                      await _database.child('call_signals/$signalId').remove();
-                    } catch (e) {
-                      print('Error processing call signal: $e');
-                    }
+                          await _database
+                              .child('call_signals/$signalId')
+                              .remove();
+                        } catch (e) {
+                          print('Error processing call signal: $e');
+                        }
+                      }
+                    });
                   }
-                });
-              }
-            },
-            onError: (error) {
-              print('Error in call signals stream: $error');
-              controller.addError(error);
-            },
-          );
-    }).catchError((error) {
-      print('Error getting user ID for call signals: $error');
-      controller.addError(error);
-    });
+                },
+                onError: (error) {
+                  print('Error in call signals stream: $error');
+                  controller.addError(error);
+                },
+              );
+        })
+        .catchError((error) {
+          print('Error getting user ID for call signals: $error');
+          controller.addError(error);
+        });
 
     controller.onCancel = () {
       subscription?.cancel();
@@ -599,7 +673,9 @@ class FirebaseMessageService {
 
   static Future<void> cleanupExpiredCallSignals() async {
     try {
-      final oneHourAgo = DateTime.now().subtract(const Duration(hours: 1)).millisecondsSinceEpoch;
+      final oneHourAgo = DateTime.now()
+          .subtract(const Duration(hours: 1))
+          .millisecondsSinceEpoch;
       final snapshot = await _database.child('call_signals').once();
 
       if (snapshot.snapshot.exists) {
@@ -626,7 +702,9 @@ class FirebaseMessageService {
       final currentUserId = await StorageService.getUserId();
       if (currentUserId == null) return;
 
-      final tenMinutesAgo = DateTime.now().subtract(const Duration(minutes: 10)).millisecondsSinceEpoch;
+      final tenMinutesAgo = DateTime.now()
+          .subtract(const Duration(minutes: 10))
+          .millisecondsSinceEpoch;
       final snapshot = await _database.child('call_signals').once();
 
       if (snapshot.snapshot.exists) {
@@ -638,7 +716,10 @@ class FirebaseMessageService {
           final type = signalData['type'] as String?;
           final timestamp = signalData['timestamp'] as int?;
 
-          if (senderId == currentUserId && type == 'offer' && timestamp != null && timestamp < tenMinutesAgo) {
+          if (senderId == currentUserId &&
+              type == 'offer' &&
+              timestamp != null &&
+              timestamp < tenMinutesAgo) {
             await _database.child('call_signals/${entry.key}').remove();
           }
         }

@@ -228,9 +228,9 @@ class WebRTCService {
       // Set initial status
       _callStatusController.add(CallStatus.outgoing);
 
-      // Set call timeout (30 seconds)
+      // Set call timeout (60 seconds instead of 30 for better UX)
       _callTimeout?.cancel();
-      _callTimeout = Timer(const Duration(seconds: 30), () {
+      _callTimeout = Timer(const Duration(seconds: 60), () {
         print('Call timeout reached');
         _callStatusController.add(CallStatus.failed);
         endCall();
@@ -252,21 +252,28 @@ class WebRTCService {
       await _peerConnection!.setLocalDescription(offer);
       print('Local description set');
 
-      // Send call signal through Firebase
-      await FirebaseMessageService.sendCallSignal(
-        receiverId: receiverId,
-        callId: _currentCallId!,
-        type: 'offer',
-        data: offer.toMap(),
-        callType: _currentCallType!, // Use the potentially updated call type
-      );
+      // Send call signal through Firebase - but don't await it
+      FirebaseMessageService.sendCallSignal(
+            receiverId: receiverId,
+            callId: _currentCallId!,
+            type: 'offer',
+            data: offer.toMap(),
+            callType: _currentCallType!,
+          )
+          .then((_) {
+            print('Call offer sent successfully');
+          })
+          .catchError((e) {
+            print('Error sending call signal: $e');
+            _callStatusController.add(CallStatus.failed);
+          });
 
-      print('Call offer sent successfully');
+      print('Call setup completed, returning control to CallManager');
     } catch (e) {
       print('Start call error: $e');
       _callStatusController.add(CallStatus.failed);
       await endCall();
-      rethrow; // Re-throw to show user-friendly error
+      rethrow;
     }
   }
 
