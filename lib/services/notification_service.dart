@@ -20,9 +20,17 @@ class NotificationService {
   // Your service account JSON - store this securely in production
   static const String _serviceAccountJson = '''
 {
-
-
-
+  "type": "service_account",
+  "project_id": "symme-a0f87",
+  "private_key_id": "bc8991c78bfb9a0a6778086ab0d0404129e33c82",
+  "private_key": "-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCTNlV0o9FGN2BV\\nd/fQZ/4dNgEGdzp7IfJhil+pYNEnmKaPyXgdjWFXGyRTGgvYynbJKuoU6Pri8aXl\\n+zVmaCVVlH3aORTgsyvtf4xGYilPQckylNdlLQFRLv23OdgnwnnC0bx41VWMbH0B\\nE7pMk6giwxoUyNNvcwSDufN1L9jruJuTSn+Wrp82DvRLzlEDHXVzGUWLnXTR1ZNJ\\noQTBBqMGjduQ8FZokNxI9pTSq8ckgtGhs4dvjJ/PnldWuxCeTfDU5ynjn2sbkdor\\nfmQUstYLN84ZkSOOuliWF4HNMiix4qmUhd2BL1anbSdhHFgCkDRlZGz2eIRnMZQH\\nyeIkTawpAgMBAAECggEAArcgWWVCJsTpDSUy2CXAPVgHKdAzhHI/rxvnICUt28id\\niI5t8uxDgjX5Hrf0Gvy/tyiIUSLA/0RMy+gCd/qYzFzPpiGiaHNK7qJeey00AjG+\\nR9AQrwg8UNEzPdjJILvzagFbXsaJ7EFTXEc5taWNluKOuG5siU7k+Oxfo2bisz+u\\neUef1K84wghk9xfavUcPO95RLagGeLFheqNHEDFFPWdtP5uJ7Snb0rFbHsy5j4RC\\n9KbsJM2Fl+4JCBAgsc/xPXbYb3ZuGiPi/2+hW8DTBOjahDdM0YBwL4rbnJXItrPI\\n4fIsD/ZMyzSvP8FCQEp8fh2bKNz3aFTh9ysvfhuBQQKBgQDFsdkOlUQl4WtMNtiO\\n5Aqp2CMnAey76KRTtUxPbB2TfizK9laSNsIyeZBhHOSp7pa9ZKIxgGpCGKKgNULg\\nMq7f9wwRADX5zFN99YRP+6HRMGVlkbxj9gNNEqC8892r7dKaU/vDZvNV5fe8yOxJ\\n2Blxk9dWRfSpDULgt4ZacZvIEQKBgQC+oQH0PYNwsyoQK/C/F+Fg/f2OiW93/bsB\\nqrB4T8rconZ1A1U3AQntfxlL/vF/onV9wXzjxnlJQORJhEOLP8FKqmBlKvMVESAe\\nKcXQUciIz7IFwiSmlBuHDX8Q7GBjrGo44zS4RQG19no55jCMVm1rDUAn/a4efcRI\\nW0eFBit6mQKBgQCwfpfG8jH2E6qkTy7FWwe+HE09zPUZyZezd99Z5K7+951r0cL2\\nJFb5kxf360CmCXCgQ1CeGwRCYBYIK6S53eXL45XtM5/8lJNRl7h5Y7BSvv83T4W+\\nRGssCt5f8uPLU7Y6u5HAIJBL9tRWwZZaUshcYt3Tkv7bUhCL6KzU4Cpw0QKBgEZb\\nLllyipyBw7iMPyKIMcqWc4qz9swWfXq0AMWmzXx5CbdOL5lJbNyW2ENQKNmuoCZ1\\nzx5SFlmO9bKcekFemnxwPXuZSnYwB+aaDERCqvyzi0TMzrIcX7yMoqUgWMLw05OD\\nZ+XKskLyYVIVPz3MeD3WeiNIYYcna9Y4ukDCcjGhAoGAcHEFsLAU4b4bBG8SVzd5\\nsPZyYyOof3Cjb6wOwG3N703X4fIfaltpc5cVdCg0EwSo7dgpi/xCGQoSZKMIlyvy\\nTkvnwES3nVofG4HHuQNdo2tbwjeuI6fZPj7vfp2LbVQJlF22xHuLZ+qV2qdX5kXg\\nNCCz1tydqqWURd4MCiEpp0A=\\n-----END PRIVATE KEY-----\\n",
+  "client_email": "firebase-adminsdk-fbsvc@symme-a0f87.iam.gserviceaccount.com",
+  "client_id": "101597194086173479184",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40symme-a0f87.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
 }''';
 
   // Initialize notification service
