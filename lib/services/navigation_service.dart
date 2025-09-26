@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class NavigationService {
+<<<<<<< HEAD
   // Import the global navigator key from main.dart
   static GlobalKey<NavigatorState>? _navigatorKey;
 
@@ -22,6 +23,20 @@ class NavigationService {
 
   static Future<T?>? push<T extends Object?>(Widget page) {
     return _navigatorKey?.currentState?.push<T>(
+=======
+  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  static void initialize() {
+    // No initialization needed for this simple service
+  }
+
+  static BuildContext get currentContext => navigatorKey.currentContext!;
+
+  static Future<T?>? push<T extends Object?>(
+    Widget page,
+  ) {
+    return navigatorKey.currentState?.push<T>(
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       MaterialPageRoute(builder: (context) => page),
     );
   }
@@ -29,12 +44,17 @@ class NavigationService {
   static Future<T?>? pushReplacement<T extends Object?, TO extends Object?>(
     Widget page,
   ) {
+<<<<<<< HEAD
     return _navigatorKey?.currentState?.pushReplacement<T, TO>(
+=======
+    return navigatorKey.currentState?.pushReplacement<T, TO>(
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       MaterialPageRoute(builder: (context) => page),
     );
   }
 
   static void pop<T extends Object?>([T? result]) {
+<<<<<<< HEAD
     return _navigatorKey?.currentState?.pop<T>(result);
   }
 
@@ -50,5 +70,8 @@ class NavigationService {
 
   static void popUntil(bool Function(Route<dynamic>) predicate) {
     return _navigatorKey?.currentState?.popUntil(predicate);
+=======
+    return navigatorKey.currentState?.pop<T>(result);
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   }
 }

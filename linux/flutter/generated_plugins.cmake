@@ -3,7 +3,10 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+<<<<<<< HEAD
   file_selector_linux
+=======
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   flutter_webrtc
 )
 

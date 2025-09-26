@@ -163,6 +163,7 @@ class ChatBubble extends StatelessWidget {
     }
   }
 
+<<<<<<< HEAD
 Widget _buildTextMessage(Color textColor) {
   // Check for various error states
   final isDecryptionError = message.content.contains('[Failed to decrypt message]') ||
@@ -208,6 +209,48 @@ Widget _buildTextMessage(Color textColor) {
     style: TextStyle(color: textColor, fontSize: 16),
   );
 }
+=======
+  Widget _buildTextMessage(Color textColor) {
+    final isEncryptedError = message.content.contains(
+      '[Encrypted Message - Cannot Decrypt]',
+    );
+
+    if (isEncryptedError) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.error_outline, size: 16, color: AppColors.errorRed),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Unable to decrypt message',
+                  style: TextStyle(
+                    color: AppColors.errorRed,
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'This message requires a special decryption key',
+            style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 12),
+          ),
+        ],
+      );
+    }
+
+    return SelectableText(
+      message.content,
+      style: TextStyle(color: textColor, fontSize: 16),
+    );
+  }
+
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   Widget _buildImageMessage(Color textColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

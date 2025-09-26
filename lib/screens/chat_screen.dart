@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 import 'dart:io';
 
+=======
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/message.dart';
@@ -9,8 +12,11 @@ import '../services/notification_service.dart'; // Add this import
 import '../widgets/chat_bubble.dart';
 import '../utils/helpers.dart';
 import '../utils/colors.dart';
+<<<<<<< HEAD
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+=======
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
 class ChatScreen extends StatefulWidget {
   final String otherUserSecureId;
@@ -113,6 +119,7 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   // NEW: Clear notifications for this chat when user enters
+<<<<<<< HEAD
 void _clearNotificationsForThisChat() {
   // Clear notifications related to this specific chat
   try {
@@ -122,6 +129,13 @@ void _clearNotificationsForThisChat() {
     print('Error clearing notifications: $e');
   }
 }
+=======
+  void _clearNotificationsForThisChat() {
+    // Clear notifications related to this specific chat
+    // You might want to implement a more sophisticated notification ID system
+    NotificationService.clearAllNotifications();
+  }
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
   // UPDATED: Handle app lifecycle changes to manage notifications
   @override
@@ -185,6 +199,7 @@ void _clearNotificationsForThisChat() {
             }
           },
         );
+<<<<<<< HEAD
     }
 
   // NEW: Mark all messages as read
@@ -203,6 +218,25 @@ void _clearNotificationsForThisChat() {
         print('Error marking messages as read: $e');
       }
     }
+=======
+  }
+
+  // NEW: Mark all messages as read
+  Future<void> _markAllMessagesAsRead() async {
+    try {
+      for (final message in _messages) {
+        if (!message.isRead && message.senderId != _currentUserId) {
+          await FirebaseMessageService.markMessageAsRead(
+            message.id,
+            message.senderId,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
+  }
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
   Future<void> _loadDisappearingTimer() async {
     try {
@@ -868,6 +902,7 @@ void _clearNotificationsForThisChat() {
       ),
     );
   }
+<<<<<<< HEAD
 Future<void> _handleAttachment(String type) async {
   Navigator.pop(context);
   
@@ -988,6 +1023,13 @@ Future<void> _sendFileMessage(String filePath, String fileName) async {
     }
   }
 }
+=======
+
+  void _handleAttachment(String type) {
+    Navigator.pop(context);
+    Helpers.showSnackBar(context, '$type attachment coming soon!');
+  }
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
   void _showClearChatDialog() {
     showDialog(

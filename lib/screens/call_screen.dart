@@ -558,6 +558,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           icon: Icons.call,
           backgroundColor: AppColors.successGreen,
           size: 70,
+<<<<<<< HEAD
         onPressed: () async {
           try {
             setState(() {
@@ -578,6 +579,28 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
             });
           }
         },
+=======
+          onPressed: () async {
+            try {
+              setState(() {
+                _callStatus = CallStatus.connecting;
+              });
+
+              // Answer the call through CallManager
+              await CallManager.instance.answerCall(widget.call);
+
+              print('Call answered successfully');
+            } catch (e) {
+              print('Error accepting call: $e');
+              _showError('Failed to accept call: ${e.toString()}');
+
+              // Reset status on error
+              setState(() {
+                _callStatus = CallStatus.incoming;
+              });
+            }
+          },
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
           label: 'Accept',
         ),
       ],

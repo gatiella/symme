@@ -31,9 +31,12 @@ dependencies:
   flutter_native_splash: ^2.4.6
   flutter_local_notifications: ^19.4.2
   http: ^1.5.0
+<<<<<<< HEAD
   googleapis_auth: ^2.0.0
   file_picker: ^10.3.3
   image_picker: ^1.2.0
+=======
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
 dev_dependencies:
   flutter_test:
@@ -48,7 +51,10 @@ flutter:
   # Assets
   assets:
     - assets/icons/
+<<<<<<< HEAD
     - assets/images/panda_security_loader.png
+=======
+>>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
 # Flutter Launcher Icons Configuration
 flutter_launcher_icons:
