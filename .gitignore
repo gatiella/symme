@@ -23,7 +23,7 @@ macos/build/
 **/*.dill
 *.aab
 
-# Caches and temp files
+# Caches and temp  files
 .pub-cache/
 .pub/
 **/.gradle/

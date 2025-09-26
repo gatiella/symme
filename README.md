@@ -1,6 +1,6 @@
 # symmeapp
 
-A new Flutter project.
+A new privacy chat.
 
 ## Getting Started
 

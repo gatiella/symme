@@ -3,9 +3,9 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "symme-app",
-          "appId": "1:436953256086:android:33b3756f003502b4e54215",
-          "fileOutput": "android/app/google-services.json"
+            "projectId": "symme-app",
+            "appId": "1:436953256086:android:33b3756f003502b4e54215",
+            "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
