@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import 'dart:io';
-
-=======
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/message.dart';
@@ -12,11 +8,9 @@ import '../services/notification_service.dart'; // Add this import
 import '../widgets/chat_bubble.dart';
 import '../utils/helpers.dart';
 import '../utils/colors.dart';
-<<<<<<< HEAD
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-=======
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
+
 
 class ChatScreen extends StatefulWidget {
   final String otherUserSecureId;
@@ -268,7 +262,81 @@ void _clearNotificationsForThisChat() {
       }
     }
   }
-
+  void _showClearChatDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _getSurfaceColor(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.errorRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.delete_outline, color: AppColors.errorRed, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Clear Chat',
+              style: TextStyle(
+                color: _getTextPrimaryColor(context),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to clear this chat?',
+              style: TextStyle(
+                color: _getTextPrimaryColor(context),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This action cannot be undone. All messages in this conversation will be permanently deleted.',
+              style: TextStyle(
+                color: _getTextSecondaryColor(context),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: _getTextSecondaryColor(context),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _clearChat();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorRed,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Clear Chat'),
+          ),
+        ],
+      ),
+    );
+  }
   void _showDisappearingMessagesDialog() {
     showDialog(
       context: context,

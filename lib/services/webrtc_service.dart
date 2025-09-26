@@ -15,11 +15,11 @@ class WebRTCService {
   MediaStream? _remoteStream;
 
   final StreamController<MediaStream> _localStreamController =
-      StreamController.broadcast();
+  StreamController.broadcast();
   final StreamController<MediaStream> _remoteStreamController =
-      StreamController.broadcast();
+  StreamController.broadcast();
   final StreamController<CallStatus> _callStatusController =
-      StreamController.broadcast();
+  StreamController.broadcast();
 
   Stream<MediaStream> get localStream => _localStreamController.stream;
   Stream<MediaStream> get remoteStream => _remoteStreamController.stream;
@@ -77,8 +77,8 @@ class WebRTCService {
       // For web, check if we're in a secure context (HTTPS or localhost)
       final isSecureContext =
           Uri.base.scheme == 'https' ||
-          Uri.base.host == 'localhost' ||
-          Uri.base.host == '127.0.0.1';
+              Uri.base.host == 'localhost' ||
+              Uri.base.host == '127.0.0.1';
 
       if (!isSecureContext) {
         throw Exception(
@@ -219,65 +219,66 @@ class WebRTCService {
       print('Starting call to $receiverId, type: $callType');
 
       // Initialize with permissions - this will now check for microphone
-      await initializeWithPermissions();
+      await _initializeWithPermissions();
 
-      currentCallType = callType;
-      currentCallId = DateTime.now().millisecondsSinceEpoch.toString();
-      receiverId = receiverId;
+      _currentCallType = callType;
+      _currentCallId = DateTime.now().millisecondsSinceEpoch.toString();
+      _receiverId = receiverId;
 
       // Set initial status
-      callStatusController.add(CallStatus.outgoing);
+      _callStatusController.add(CallStatus.outgoing);
 
       // Set call timeout (60 seconds instead of 30 for better UX)
-      callTimeout?.cancel();
-      callTimeout = Timer(const Duration(seconds: 60), () {
+      _callTimeout?.cancel();
+      _callTimeout = Timer(const Duration(seconds: 60), () {
         print('Call timeout reached');
-        callStatusController.add(CallStatus.failed);
+        _callStatusController.add(CallStatus.failed);
         endCall();
       });
 
       // Create peer connection first
-      await createPeerConnection();
+      await _createPeerConnection();
 
       // Get user media with fallback
-      await getUserMediaWithFallback(callType);
+      await _getUserMediaWithFallback(callType);
 
       // Create offer
       print('Creating offer...');
-      final offer = await peerConnection!.createOffer({
+      final offer = await _peerConnection!.createOffer({
         'offerToReceiveAudio': true,
-        'offerToReceiveVideo': callType == CallType.video && hasVideoTrack(),
+        'offerToReceiveVideo': callType == CallType.video && _hasVideoTrack(),
       });
 
-      await peerConnection!.setLocalDescription(offer);
+      await _peerConnection!.setLocalDescription(offer);
       print('Local description set');
 
       // Send call signal through Firebase - but don't await it
       FirebaseMessageService.sendCallSignal(
         receiverId: receiverId,
-        callId: currentCallId!,
+        callId: _currentCallId!,
         type: 'offer',
         data: {
           'sdp': offer.sdp,
           'type': offer.type,
         }, // Replace offer.toMap() with explicit map
-        callType: currentCallType!,
+        callType: _currentCallType!,
       )
           .then((_) {
         print('Call offer sent successfully');
       })
           .catchError((e) {
         print('Error sending call signal: $e');
-        callStatusController.add(CallStatus.failed);
+        _callStatusController.add(CallStatus.failed);
       });
       print('Call setup completed, returning control to CallManager');
     } catch (e) {
       print('Start call error: $e');
-      callStatusController.add(CallStatus.failed);
+      _callStatusController.add(CallStatus.failed);
       await endCall();
       rethrow;
     }
   }
+
   Future<void> answerCall({
     required String callId,
     required Map<String, dynamic> offerData,
@@ -323,7 +324,10 @@ class WebRTCService {
         receiverId: callerId,
         callId: callId,
         type: 'answer',
-        data: answer.toMap(),
+        data: {
+          'sdp': answer.sdp,
+          'type': answer.type,
+        },
         callType: _currentCallType!, // Use the potentially updated call type
       );
 

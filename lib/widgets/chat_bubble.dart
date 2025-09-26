@@ -208,46 +208,6 @@ Widget _buildTextMessage(Color textColor) {
     style: TextStyle(color: textColor, fontSize: 16),
   );
 }
-  Widget _buildTextMessage(Color textColor) {
-    final isEncryptedError = message.content.contains(
-      '[Encrypted Message - Cannot Decrypt]',
-    );
-
-    if (isEncryptedError) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.error_outline, size: 16, color: AppColors.errorRed),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'Unable to decrypt message',
-                  style: TextStyle(
-                    color: AppColors.errorRed,
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'This message requires a special decryption key',
-            style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 12),
-          ),
-        ],
-      );
-    }
-
-    return SelectableText(
-      message.content,
-      style: TextStyle(color: textColor, fontSize: 16),
-    );
-  }
-
   Widget _buildImageMessage(Color textColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
