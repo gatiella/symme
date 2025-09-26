@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "secureIds": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+    "messages": {
+      "$uid_1": {
+        "$uid_2": {
+          ".read": "$uid_1 === auth.uid || $uid_2 === auth.uid",
+          ".write": "$uid_2 === auth.uid"
+        }
+      }
+    },
+    "chatRooms": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    }
+  }
+}

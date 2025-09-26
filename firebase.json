@@ -1,0 +1,28 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "symme-app",
+          "appId": "1:436953256086:android:33b3756f003502b4e54215",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "symme-app",
+          "configurations": {
+            "android": "1:436953256086:android:33b3756f003502b4e54215",
+            "ios": "1:436953256086:ios:e25318398399589ae54215",
+            "macos": "1:436953256086:ios:e25318398399589ae54215",
+            "web": "1:436953256086:web:4f621396a8be4482e54215",
+            "windows": "1:436953256086:windows:f7792723c834988ae54215"
+          }
+        }
+      }
+    }
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}
