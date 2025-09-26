@@ -163,7 +163,6 @@ class ChatBubble extends StatelessWidget {
     }
   }
 
-<<<<<<< HEAD
 Widget _buildTextMessage(Color textColor) {
   // Check for various error states
   final isDecryptionError = message.content.contains('[Failed to decrypt message]') ||
@@ -209,7 +208,6 @@ Widget _buildTextMessage(Color textColor) {
     style: TextStyle(color: textColor, fontSize: 16),
   );
 }
-=======
   Widget _buildTextMessage(Color textColor) {
     final isEncryptedError = message.content.contains(
       '[Encrypted Message - Cannot Decrypt]',
@@ -250,7 +248,6 @@ Widget _buildTextMessage(Color textColor) {
     );
   }
 
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   Widget _buildImageMessage(Color textColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

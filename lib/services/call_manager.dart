@@ -54,11 +54,7 @@ class CallManager {
 
   void _listenForIncomingCalls() {
     _incomingCallSubscription = CallService.incomingCalls.listen(
-<<<<<<< HEAD
-      (call) {
-=======
           (call) {
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
         // Prevent duplicate processing
         if (_processedCalls.contains(call.id)) {
           print('Ignoring duplicate incoming call: ${call.id}');
@@ -77,8 +73,7 @@ class CallManager {
 
   void _listenForCallSignals() {
     _callSignalSubscription = CallService.callSignals.listen(
-<<<<<<< HEAD
-      (signal) {
+          (signal) {
         // Generate a unique ID for this signal to prevent duplicates
         final signalKey =
             '${signal['callId']}_${signal['type']}_${signal['timestamp']}';
@@ -87,25 +82,13 @@ class CallManager {
           print(
             'Ignoring duplicate signal: ${signal['type']} for call ${signal['callId']}',
           );
-=======
-          (signal) {
-        // Generate a unique ID for this signal to prevent duplicates
-        final signalKey = '${signal['callId']}_${signal['type']}_${signal['timestamp']}';
-
-        if (_processedSignals.contains(signalKey)) {
-          print('Ignoring duplicate signal: ${signal['type']} for call ${signal['callId']}');
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
           return;
         }
 
         _processedSignals.add(signalKey);
-<<<<<<< HEAD
         print(
           'Received call signal: ${signal['type']} for call ${signal['callId']}',
         );
-=======
-        print('Received call signal: ${signal['type']} for call ${signal['callId']}');
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
         _handleCallSignal(signal);
       },
       onError: (error) {
@@ -125,107 +108,84 @@ class CallManager {
     _startRingtone();
     _showIncomingCallScreen(call);
   }
-<<<<<<< HEAD
 
-void _handleCallSignal(Map<String, dynamic> signal) async {
-  try {
-    // Validate signal structure
-    if (!signal.containsKey('type') || !signal.containsKey('callId')) {
-=======
-void _handleCallSignal(Map<String, dynamic> signal) async {
-  try {
-    // Validate signal structure
-    if (!signal.containsKey('type') ||
-        !signal.containsKey('callId')) {
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
-      print('Invalid signal structure: missing required fields');
-      return;
-    }
-
-    final type = signal['type'] as String?;
-    final callId = signal['callId'] as String?;
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
-    // Safe conversion of data field
-    Map<String, dynamic> data = {};
-    if (signal.containsKey('data') && signal['data'] != null) {
-      final rawData = signal['data'];
-      if (rawData is Map) {
-        data = Map<String, dynamic>.from(rawData);
+  void _handleCallSignal(Map<String, dynamic> signal) async {
+    try {
+      // Validate signal structure
+      if (!signal.containsKey('type') || !signal.containsKey('callId')) {
+        print('Invalid signal structure: missing required fields');
+        return;
       }
-    }
 
-    if (type == null || callId == null) {
-      print('Invalid signal: type or callId is null');
-      return;
-    }
+      final type = signal['type'] as String?;
+      final callId = signal['callId'] as String?;
 
-    print('Processing signal type: $type for call: $callId');
-
-    switch (type) {
-      case 'offer':
-        final callType = signal['callType'] == 'video'
-            ? CallType.video
-            : CallType.audio;
-        final call = Call(
-          id: callId,
-          callerId: signal['senderId'] as String? ?? '',
-          receiverId: signal['receiverId'] as String? ?? '',
-          type: callType,
-          status: CallStatus.incoming,
-          timestamp: DateTime.now(),
-<<<<<<< HEAD
-          metadata: data, // Store offer data for answering
-=======
-          metadata: data, // Use safely converted data
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
-        );
-        _handleIncomingCall(call);
-        break;
-
-      case 'answer':
-        _cancelCallTimeout();
-<<<<<<< HEAD
-        if (_currentCall != null) {
-          _currentCall = _currentCall!.copyWith(status: CallStatus.connecting);
+      // Safe conversion of data field
+      Map<String, dynamic> data = {};
+      if (signal.containsKey('data') && signal['data'] != null) {
+        final rawData = signal['data'];
+        if (rawData is Map) {
+          data = Map<String, dynamic>.from(rawData);
         }
-=======
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
-        await _webRTCService.handleCallAnswer(data);
-        break;
+      }
 
-      case 'ice-candidate':
-        await _webRTCService.handleIceCandidate(data);
-        break;
+      if (type == null || callId == null) {
+        print('Invalid signal: type or callId is null');
+        return;
+      }
 
-      case 'decline':
-        _handleCallDeclined();
-        break;
+      print('Processing signal type: $type for call: $callId');
 
-      case 'end':
-        _handleCallEnded();
-        break;
+      switch (type) {
+        case 'offer':
+          final callType = signal['callType'] == 'video'
+              ? CallType.video
+              : CallType.audio;
+          final call = Call(
+            id: callId,
+            callerId: signal['senderId'] as String? ?? '',
+            receiverId: signal['receiverId'] as String? ?? '',
+            type: callType,
+            status: CallStatus.incoming,
+            timestamp: DateTime.now(),
+            metadata: data, // Store offer data for answering
+          );
+          _handleIncomingCall(call);
+          break;
 
-      case 'timeout':
-        final reason = data['reason'] as String?;
-        _handleCallTimeout(reason);
-        break;
+        case 'answer':
+          _cancelCallTimeout();
+          if (_currentCall != null) {
+            _currentCall = _currentCall!.copyWith(status: CallStatus.connecting);
+          }
+          await _webRTCService.handleCallAnswer(data);
+          break;
 
-      default:
-        print('Unknown signal type: $type');
-        break;
+        case 'ice-candidate':
+          await _webRTCService.handleIceCandidate(data);
+          break;
+
+        case 'decline':
+          _handleCallDeclined();
+          break;
+
+        case 'end':
+          _handleCallEnded();
+          break;
+
+        case 'timeout':
+          final reason = data['reason'] as String?;
+          _handleCallTimeout(reason);
+          break;
+
+        default:
+          print('Unknown signal type: $type');
+          break;
+      }
+    } catch (e) {
+      print('Error handling call signal: $e');
     }
-  } catch (e) {
-    print('Error handling call signal: $e');
   }
-}
-<<<<<<< HEAD
-=======
-
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   Future<CallResult> startCall({
     required String receiverSecureId,
     required CallType callType,
@@ -246,11 +206,7 @@ void _handleCallSignal(Map<String, dynamic> signal) async {
         return CallResult(
           success: false,
           error:
-<<<<<<< HEAD
-              'Microphone not available. Please connect a microphone and try again.',
-=======
           'Microphone not available. Please connect a microphone and try again.',
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
         );
       }
 
@@ -261,11 +217,7 @@ void _handleCallSignal(Map<String, dynamic> signal) async {
           return CallResult(
             success: false,
             error:
-<<<<<<< HEAD
-                'Camera not available. Please connect a camera or switch to audio call.',
-=======
             'Camera not available. Please connect a camera or switch to audio call.',
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
           );
         }
       }
@@ -287,7 +239,6 @@ void _handleCallSignal(Map<String, dynamic> signal) async {
 
         _currentCall = call.copyWith(status: CallStatus.outgoing);
 
-<<<<<<< HEAD
         // Set timeout for outgoing call (60 seconds)
         _setCallTimeout();
 
@@ -299,24 +250,11 @@ void _handleCallSignal(Map<String, dynamic> signal) async {
         _webRTCService
             .startCall(receiverId: call.receiverId, callType: call.type)
             .catchError((e) {
-              print('WebRTC start call error: $e');
-              // Handle error but don't block the UI
-              _showErrorMessage('Call connection failed: ${e.toString()}');
-              endCall();
-            });
-=======
-        // Set timeout for outgoing call (30 seconds)
-        _setCallTimeout();
-
-        // Show call screen
-        _showCallScreen(_currentCall!, isIncoming: false);
-
-        // Start WebRTC call
-        await _webRTCService.startCall(
-          receiverId: call.receiverId,
-          callType: call.type,
-        );
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
+          print('WebRTC start call error: $e');
+          // Handle error but don't block the UI
+          _showErrorMessage('Call connection failed: ${e.toString()}');
+          endCall();
+        });
 
         return CallResult(success: true);
       } catch (e) {
@@ -380,7 +318,6 @@ void _handleCallSignal(Map<String, dynamic> signal) async {
 
   void _showTimeoutMessage(String message) {
     final context = NavigationService.currentContext;
-<<<<<<< HEAD
     if (context != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -410,74 +347,18 @@ void _handleCallSignal(Map<String, dynamic> signal) async {
     }
   }
 
-Future<void> answerCall(Call call) async {
-  try {
-    print('Answering call: ${call.id}');
-
-    _stopRingtone();
-    _cancelCallTimeout(); // Add this line
-    await WakelockPlus.enable();
-
-    _currentCall = call.copyWith(status: CallStatus.connecting); // Update status
-    await CallService.answerCall(call.id);
-
-    // Start WebRTC answer process
-    if (call.metadata != null && call.metadata!.isNotEmpty) {
-      await _webRTCService.answerCall(
-        callId: call.id,
-        offerData: call.metadata!,
-        callType: call.type,
-        callerId: call.callerId,
-      );
-    } else {
-      print('No offer data available in call metadata');
-      throw Exception('Invalid call data - no offer information');
-    }
-    
-    print('Call answered successfully');
-  } catch (e) {
-    print('Error answering call: $e');
-    await WakelockPlus.disable();
-    _showErrorMessage('Failed to answer call: ${e.toString()}');
-    rethrow;
-  }
-}
-=======
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.call_end, color: AppColors.errorRed, size: 20),
-            const SizedBox(width: 12),
-            Text(
-              message,
-              style: TextStyle(
-                color: AppColors.errorRed,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.errorRed,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
   Future<void> answerCall(Call call) async {
     try {
       print('Answering call: ${call.id}');
 
       _stopRingtone();
+      _cancelCallTimeout(); // Add this line
       await WakelockPlus.enable();
 
-      _currentCall = call;
+      _currentCall = call.copyWith(status: CallStatus.connecting); // Update status
       await CallService.answerCall(call.id);
-      _showCallScreen(call, isIncoming: true);
 
-      // Handle the WebRTC answer if offer data is available
+      // Start WebRTC answer process
       if (call.metadata != null && call.metadata!.isNotEmpty) {
         await _webRTCService.answerCall(
           callId: call.id,
@@ -485,7 +366,12 @@ Future<void> answerCall(Call call) async {
           callType: call.type,
           callerId: call.callerId,
         );
+      } else {
+        print('No offer data available in call metadata');
+        throw Exception('Invalid call data - no offer information');
       }
+
+      print('Call answered successfully');
     } catch (e) {
       print('Error answering call: $e');
       await WakelockPlus.disable();
@@ -493,7 +379,6 @@ Future<void> answerCall(Call call) async {
       rethrow;
     }
   }
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
   Future<void> declineCall(Call call) async {
     try {
@@ -558,7 +443,6 @@ Future<void> answerCall(Call call) async {
     _currentCall = null;
   }
 
-<<<<<<< HEAD
   // void _showIncomingCallScreen(Call call) {
   //   NavigationService.push(CallScreen(call: call, isIncoming: true));
   // }
@@ -587,14 +471,6 @@ Future<void> answerCall(Call call) async {
   void _showIncomingCallScreen(Call call) {
     print('Showing incoming call screen for call: ${call.id}');
     _showCallScreen(call, isIncoming: true);
-=======
-  void _showIncomingCallScreen(Call call) {
-    NavigationService.push(CallScreen(call: call, isIncoming: true));
-  }
-
-  void _showCallScreen(Call call, {required bool isIncoming}) {
-    NavigationService.push(CallScreen(call: call, isIncoming: isIncoming));
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   }
 
   void _startRingtone() {
@@ -627,7 +503,6 @@ Future<void> answerCall(Call call) async {
 
   void _showMessage(String message, {bool isError = false}) {
     final context = NavigationService.currentContext;
-<<<<<<< HEAD
     if (context != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -663,35 +538,6 @@ Future<void> answerCall(Call call) async {
     } else {
       print('No valid BuildContext available to show SnackBar: $message');
     }
-=======
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.info_outline,
-              color: isError ? AppColors.errorRed : AppColors.textOnPrimary,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(
-                  color: isError ? AppColors.errorRed : AppColors.textOnPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: isError ? AppColors.errorRed : AppColors.primaryCyan,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   }
 
   void _showErrorMessage(String message) {
@@ -749,8 +595,4 @@ class CallResult {
   final String? error;
 
   CallResult({required this.success, this.error});
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7

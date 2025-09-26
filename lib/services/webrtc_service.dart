@@ -219,89 +219,65 @@ class WebRTCService {
       print('Starting call to $receiverId, type: $callType');
 
       // Initialize with permissions - this will now check for microphone
-      await _initializeWithPermissions();
+      await initializeWithPermissions();
 
-      _currentCallType = callType;
-      _currentCallId = DateTime.now().millisecondsSinceEpoch.toString();
-      _receiverId = receiverId;
+      currentCallType = callType;
+      currentCallId = DateTime.now().millisecondsSinceEpoch.toString();
+      receiverId = receiverId;
 
       // Set initial status
-      _callStatusController.add(CallStatus.outgoing);
+      callStatusController.add(CallStatus.outgoing);
 
-<<<<<<< HEAD
       // Set call timeout (60 seconds instead of 30 for better UX)
-      _callTimeout?.cancel();
-      _callTimeout = Timer(const Duration(seconds: 60), () {
-=======
-      // Set call timeout (30 seconds)
-      _callTimeout?.cancel();
-      _callTimeout = Timer(const Duration(seconds: 30), () {
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
+      callTimeout?.cancel();
+      callTimeout = Timer(const Duration(seconds: 60), () {
         print('Call timeout reached');
-        _callStatusController.add(CallStatus.failed);
+        callStatusController.add(CallStatus.failed);
         endCall();
       });
 
       // Create peer connection first
-      await _createPeerConnection();
+      await createPeerConnection();
 
       // Get user media with fallback
-      await _getUserMediaWithFallback(callType);
+      await getUserMediaWithFallback(callType);
 
       // Create offer
       print('Creating offer...');
-      final offer = await _peerConnection!.createOffer({
+      final offer = await peerConnection!.createOffer({
         'offerToReceiveAudio': true,
-        'offerToReceiveVideo': callType == CallType.video && _hasVideoTrack(),
+        'offerToReceiveVideo': callType == CallType.video && hasVideoTrack(),
       });
 
-      await _peerConnection!.setLocalDescription(offer);
+      await peerConnection!.setLocalDescription(offer);
       print('Local description set');
 
-<<<<<<< HEAD
       // Send call signal through Firebase - but don't await it
-        FirebaseMessageService.sendCallSignal(
-              receiverId: receiverId,
-              callId: _currentCallId!,
-              type: 'offer',
-              data: {
-                'sdp': offer.sdp,
-                'type': offer.type,
-              }, // Replace offer.toMap() with explicit map
-              callType: _currentCallType!,
-            )
-            .then((_) {
-              print('Call offer sent successfully');
-            })
-            .catchError((e) {
-              print('Error sending call signal: $e');
-              _callStatusController.add(CallStatus.failed);
-            });
-      print('Call setup completed, returning control to CallManager');
-=======
-      // Send call signal through Firebase
-      await FirebaseMessageService.sendCallSignal(
+      FirebaseMessageService.sendCallSignal(
         receiverId: receiverId,
-        callId: _currentCallId!,
+        callId: currentCallId!,
         type: 'offer',
-        data: offer.toMap(),
-        callType: _currentCallType!, // Use the potentially updated call type
-      );
-
-      print('Call offer sent successfully');
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
+        data: {
+          'sdp': offer.sdp,
+          'type': offer.type,
+        }, // Replace offer.toMap() with explicit map
+        callType: currentCallType!,
+      )
+          .then((_) {
+        print('Call offer sent successfully');
+      })
+          .catchError((e) {
+        print('Error sending call signal: $e');
+        callStatusController.add(CallStatus.failed);
+      });
+      print('Call setup completed, returning control to CallManager');
     } catch (e) {
       print('Start call error: $e');
-      _callStatusController.add(CallStatus.failed);
+      callStatusController.add(CallStatus.failed);
       await endCall();
-<<<<<<< HEAD
       rethrow;
-=======
-      rethrow; // Re-throw to show user-friendly error
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
     }
   }
-
   Future<void> answerCall({
     required String callId,
     required Map<String, dynamic> offerData,

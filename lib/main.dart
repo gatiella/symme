@@ -1,21 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
-<<<<<<< HEAD
 import 'screens/auth_loading_screen.dart';
 import 'screens/chat_screen.dart'; // Import your ChatScreen
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'services/notification_service.dart';
 import 'services/navigation_service.dart'; // ADD THIS IMPORT
-=======
-import 'package:symme/main.dart' as NavigationService;
-import 'screens/auth_loading_screen.dart';
-import 'firebase_options.dart';
-import 'providers/theme_provider.dart';
-import 'services/notification_service.dart';
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 import 'package:flutter/services.dart';
 
 // Global navigator key for navigation from notifications
@@ -31,7 +25,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-<<<<<<< HEAD
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -42,15 +35,6 @@ void main() async {
   // Initialize NavigationService with the global navigator key
   NavigationService.initialize(navigatorKey);
 
-=======
-  
-  // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
-  // Set background message handler for FCM
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   // Initialize notification service
   try {
     await NotificationService.initialize();
@@ -58,26 +42,17 @@ void main() async {
   } catch (e) {
     print('Failed to initialize notification service: $e');
   }
-<<<<<<< HEAD
+
   // Hide status bar + navigation bar (immersive fullscreen)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   // Initialize screen protection
   await _initializeScreenProtection();
-=======
 
-  // Hide status bar + navigation bar (immersive fullscreen)
-  //SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-  // Initialize screen protection
-  //await _initializeScreenProtection();
-
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   runApp(const SymmeApp());
 }
 
 // Method to initialize screen protection
-<<<<<<< HEAD
 Future<void> _initializeScreenProtection() async {
   const platform = MethodChannel('com.gatiella.symmeapp/screen_protection');
   try {
@@ -87,17 +62,6 @@ Future<void> _initializeScreenProtection() async {
     print("Failed to enable screen protection: '${e.message}'.");
   }
 }
-=======
-// Future<void> _initializeScreenProtection() async {
-//   const platform = MethodChannel('com.gatiella.symmeapp/screen_protection');
-//   try {
-//     await platform.invokeMethod('enableScreenProtection');
-//     print('Screen protection enabled');
-//   } on PlatformException catch (e) {
-//     print("Failed to enable screen protection: '${e.message}'.");
-//   }
-// }
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
 class SymmeApp extends StatefulWidget {
   const SymmeApp({super.key});
@@ -110,11 +74,7 @@ class _SymmeAppState extends State<SymmeApp> {
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
     // Handle initial message after the widget tree is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleInitialMessage();
@@ -129,7 +89,6 @@ class _SymmeAppState extends State<SymmeApp> {
     }
   }
 
-<<<<<<< HEAD
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -166,7 +125,7 @@ class _SymmeAppState extends State<SymmeApp> {
   // Helper method to build chat route with arguments
   Widget _buildChatRoute(BuildContext context) {
     final arguments =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final senderId = arguments?['senderId'] as String?;
 
     if (senderId != null) {
@@ -184,7 +143,7 @@ class _SymmeAppState extends State<SymmeApp> {
   // Helper method to build contact requests route
   Widget _buildContactRequestsRoute(BuildContext context) {
     final arguments =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final requesterId = arguments?['requesterId'] as String?;
 
     // Return your ContactRequestsScreen or appropriate screen
@@ -196,56 +155,3 @@ class _SymmeAppState extends State<SymmeApp> {
     );
   }
 }
-=======
-@override
-Widget build(BuildContext context) {
-  return ChangeNotifierProvider(
-    create: (_) => ThemeProvider(),
-    child: Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return MaterialApp(
-          navigatorKey: NavigationService.navigatorKey, // Add this line
-          title: 'Symme',
-          themeMode: themeProvider.themeMode,
-          theme: ThemeData(
-            brightness: Brightness.light,
-            colorSchemeSeed: Colors.deepPurple,
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            brightness: Brightness.dark,
-            colorSchemeSeed: Colors.deepPurple,
-            useMaterial3: true,
-          ),
-          home: const AuthLoadingScreen(),
-          debugShowCheckedModeBanner: false,
-          routes: {
-            '/chat': (context) => _buildChatRoute(context),
-          },
-        );
-      },
-    ),
-  );
-}
-
-  // Helper method to build chat route with arguments
-  Widget _buildChatRoute(BuildContext context) {
-    final arguments = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final senderId = arguments?['senderId'] as String?;
-    
-    if (senderId != null) {
-      // Return your ChatScreen widget here
-      // Example: return ChatScreen(senderId: senderId);
-      return Scaffold(
-        appBar: AppBar(title: Text('Chat with $senderId')),
-        body: Center(child: Text('Chat screen for $senderId')),
-      );
-    }
-    
-    // Return fallback screen if no senderId provided
-    return const Scaffold(
-      body: Center(child: Text('Invalid chat route')),
-    );
-  }
-}
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7

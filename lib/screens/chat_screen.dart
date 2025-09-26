@@ -119,7 +119,6 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   // NEW: Clear notifications for this chat when user enters
-<<<<<<< HEAD
 void _clearNotificationsForThisChat() {
   // Clear notifications related to this specific chat
   try {
@@ -129,13 +128,6 @@ void _clearNotificationsForThisChat() {
     print('Error clearing notifications: $e');
   }
 }
-=======
-  void _clearNotificationsForThisChat() {
-    // Clear notifications related to this specific chat
-    // You might want to implement a more sophisticated notification ID system
-    NotificationService.clearAllNotifications();
-  }
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
   // UPDATED: Handle app lifecycle changes to manage notifications
   @override
@@ -199,7 +191,6 @@ void _clearNotificationsForThisChat() {
             }
           },
         );
-<<<<<<< HEAD
     }
 
   // NEW: Mark all messages as read
@@ -218,25 +209,6 @@ void _clearNotificationsForThisChat() {
         print('Error marking messages as read: $e');
       }
     }
-=======
-  }
-
-  // NEW: Mark all messages as read
-  Future<void> _markAllMessagesAsRead() async {
-    try {
-      for (final message in _messages) {
-        if (!message.isRead && message.senderId != _currentUserId) {
-          await FirebaseMessageService.markMessageAsRead(
-            message.id,
-            message.senderId,
-          );
-        }
-      }
-    } catch (e) {
-      print('Error marking messages as read: $e');
-    }
-  }
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
   Future<void> _loadDisappearingTimer() async {
     try {
@@ -902,7 +874,6 @@ void _clearNotificationsForThisChat() {
       ),
     );
   }
-<<<<<<< HEAD
 Future<void> _handleAttachment(String type) async {
   Navigator.pop(context);
   
@@ -1023,77 +994,6 @@ Future<void> _sendFileMessage(String filePath, String fileName) async {
     }
   }
 }
-=======
-
-  void _handleAttachment(String type) {
-    Navigator.pop(context);
-    Helpers.showSnackBar(context, '$type attachment coming soon!');
-  }
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
-
-  void _showClearChatDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _getSurfaceColor(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.delete_forever,
-                color: AppColors.errorRed,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Clear Chat',
-              style: TextStyle(
-                color: _getTextPrimaryColor(context),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'This will delete all messages in this chat. This action cannot be undone.',
-          style: TextStyle(color: _getTextSecondaryColor(context)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: _getTextSecondaryColor(context),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.errorRed,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              _clearChat();
-            },
-            child: const Text('Delete All'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _clearChat() async {
     if (_otherUserId == null) {
       Helpers.showSnackBar(context, 'Cannot clear chat: missing user ID');

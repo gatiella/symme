@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-<<<<<<< HEAD
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:symme/main.dart';
 import 'package:symme/models/call.dart';
@@ -13,7 +12,7 @@ import 'package:symme/services/call_manager.dart';
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
 
   static String? _fcmToken;
   static bool _initialMessageHandled = false;
@@ -34,28 +33,11 @@ class NotificationService {
   "universe_domain": "googleapis.com"
 }''';
 
-=======
-
-import 'package:symme/main.dart';
-
-class NotificationService {
-  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  static final FlutterLocalNotificationsPlugin _localNotifications = 
-      FlutterLocalNotificationsPlugin();
-  
-  static String? _fcmToken;
-  static bool _initialMessageHandled = false;
-  
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   // Initialize notification service
   static Future<void> initialize() async {
     try {
       print('Initializing notification service...');
-<<<<<<< HEAD
 
-=======
-      
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       // Request permission for notifications
       NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
@@ -69,7 +51,6 @@ class NotificationService {
 
       print('Notification permission status: ${settings.authorizationStatus}');
 
-<<<<<<< HEAD
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         print('User granted notification permissions');
@@ -83,21 +64,6 @@ class NotificationService {
         // Setup message handlers (but NOT initial message here)
         _setupMessageHandlers();
 
-=======
-      if (settings.authorizationStatus == AuthorizationStatus.authorized || 
-          settings.authorizationStatus == AuthorizationStatus.provisional) {
-        print('User granted notification permissions');
-        
-        // Initialize local notifications
-        await _initializeLocalNotifications();
-        
-        // Get and store FCM token
-        await _getFCMToken();
-        
-        // Setup message handlers (but NOT initial message here)
-        _setupMessageHandlers();
-        
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
         print('Notification service initialized successfully');
       } else {
         print('User declined or has not granted notification permissions');
@@ -110,7 +76,6 @@ class NotificationService {
   // Call this method AFTER your navigation is ready (e.g., in main.dart after MaterialApp is built)
   static Future<void> handleInitialMessage() async {
     if (_initialMessageHandled) return;
-<<<<<<< HEAD
 
     try {
       final RemoteMessage? initialMessage = await FirebaseMessaging.instance
@@ -128,22 +93,6 @@ class NotificationService {
         _handleMessageOpenedApp(initialMessage);
       }
 
-=======
-    
-    try {
-      final RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-      
-      if (initialMessage != null) {
-        print('App opened from terminated state with message: ${initialMessage.messageId}');
-        print('Message data: ${initialMessage.data}');
-        
-        // Wait a bit to ensure navigation is fully ready
-        await Future.delayed(const Duration(milliseconds: 500));
-        
-        _handleMessageOpenedApp(initialMessage);
-      }
-      
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       _initialMessageHandled = true;
     } catch (e) {
       print('Error handling initial message: $e');
@@ -153,33 +102,20 @@ class NotificationService {
   // Initialize local notifications
   static Future<void> _initializeLocalNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-<<<<<<< HEAD
-          requestSoundPermission: true,
-          requestBadgePermission: true,
-          requestAlertPermission: true,
-        );
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-          android: initializationSettingsAndroid,
-          iOS: initializationSettingsIOS,
-        );
-=======
+    DarwinInitializationSettings(
       requestSoundPermission: true,
       requestBadgePermission: true,
       requestAlertPermission: true,
     );
 
     const InitializationSettings initializationSettings =
-        InitializationSettings(
+    InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
     await _localNotifications.initialize(
       initializationSettings,
@@ -188,14 +124,9 @@ class NotificationService {
       },
     );
 
-<<<<<<< HEAD
     // Create both message and call notification channels
     await _createNotificationChannel();
     await _createCallNotificationChannel();
-=======
-    // Create notification channel for Android
-    await _createNotificationChannel();
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   }
 
   // Create notification channel for Android
@@ -208,13 +139,9 @@ class NotificationService {
     );
 
     await _localNotifications
-<<<<<<< HEAD
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-=======
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
+        AndroidFlutterLocalNotificationsPlugin
+    >()
         ?.createNotificationChannel(channel);
   }
 
@@ -225,27 +152,16 @@ class NotificationService {
         print('Returning cached FCM token');
         return _fcmToken;
       }
-<<<<<<< HEAD
 
       _fcmToken = await _messaging.getToken();
       print('FCM Token obtained: ${_fcmToken?.substring(0, 20)}...');
 
-=======
-      
-      _fcmToken = await _messaging.getToken();
-      print('FCM Token obtained: ${_fcmToken?.substring(0, 20)}...');
-      
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       // Listen for token refresh
       _messaging.onTokenRefresh.listen((newToken) {
         _fcmToken = newToken;
         print('FCM Token refreshed: ${newToken.substring(0, 20)}...');
       });
-<<<<<<< HEAD
 
-=======
-      
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       return _fcmToken;
     } catch (e) {
       print('Error getting FCM token: $e');
@@ -281,7 +197,6 @@ class NotificationService {
       final notification = message.notification;
       if (notification == null) return;
 
-<<<<<<< HEAD
       // Check if it's a call notification
       final isCallNotification = message.data['type'] == 'incoming_call';
 
@@ -325,34 +240,15 @@ class NotificationService {
           category: AndroidNotificationCategory.message,
         );
       }
-=======
-      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-        'messages_channel',
-        'Message Notifications',
-        channelDescription: 'Notifications for new messages',
-        importance: Importance.high,
-        priority: Priority.high,
-        showWhen: true,
-        icon: '@mipmap/ic_launcher',
-        color: Color(0xFF00BCD4), // Your app's primary color
-        enableVibration: true,
-      );
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
 
       const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
-<<<<<<< HEAD
         interruptionLevel: InterruptionLevel.critical, // For calls
       );
 
       final NotificationDetails details = NotificationDetails(
-=======
-      );
-
-      const NotificationDetails details = NotificationDetails(
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
         android: androidDetails,
         iOS: iosDetails,
       );
@@ -369,7 +265,6 @@ class NotificationService {
     }
   }
 
-<<<<<<< HEAD
   static Future<void> _createCallNotificationChannel() async {
     const AndroidNotificationChannel callChannel = AndroidNotificationChannel(
       'calls_channel',
@@ -382,20 +277,17 @@ class NotificationService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+        AndroidFlutterLocalNotificationsPlugin
+    >()
         ?.createNotificationChannel(callChannel);
   }
 
-=======
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   // Handle notification tap
   static void _handleNotificationTap(NotificationResponse response) {
     try {
       if (response.payload != null) {
         final data = json.decode(response.payload!);
         print('Notification tapped with data: $data');
-<<<<<<< HEAD
 
         // Handle call notification actions
         if (response.actionId == 'answer_call') {
@@ -408,61 +300,53 @@ class NotificationService {
           // Regular notification tap - navigate to appropriate screen
           _navigateFromNotification(data);
         }
-=======
-        
-        // Navigate to appropriate screen based on notification data
-        _navigateFromNotification(data);
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       }
     } catch (e) {
       print('Error handling notification tap: $e');
     }
   }
 
-<<<<<<< HEAD
   // Add this new method to handle call actions
 // Handle call notification actions
-static void _handleCallAction(Map<String, dynamic> data, String action) {
-  try {
-    final callId = data['callId'] as String?;
-    final callerId = data['callerId'] as String?;
-    final callTypeString = data['callType'] as String?;
+  static void _handleCallAction(Map<String, dynamic> data, String action) {
+    try {
+      final callId = data['callId'] as String?;
+      final callerId = data['callerId'] as String?;
+      final callTypeString = data['callType'] as String?;
 
-    if (callId != null && callerId != null && callTypeString != null) {
-      final callType = callTypeString == 'video'
-          ? CallType.video
-          : CallType.audio;
+      if (callId != null && callerId != null && callTypeString != null) {
+        final callType = callTypeString == 'video'
+            ? CallType.video
+            : CallType.audio;
 
-      final call = Call(
-        id: callId,
-        callerId: callerId,
-        receiverId: '',
-        type: callType,
-        status: CallStatus.incoming,
-        timestamp: DateTime.now(),
-        callerName: callerId,
-        // Add empty metadata that will be filled by CallManager
-        metadata: <String, dynamic>{},
-      );
+        final call = Call(
+          id: callId,
+          callerId: callerId,
+          receiverId: '',
+          type: callType,
+          status: CallStatus.incoming,
+          timestamp: DateTime.now(),
+          callerName: callerId,
+          // Add empty metadata that will be filled by CallManager
+          metadata: <String, dynamic>{},
+        );
 
-      if (action == 'answer') {
-        // Answer the call through CallManager
-        CallManager.instance.answerCall(call).catchError((e) {
-          print('Error answering call from notification: $e');
-        });
-      } else if (action == 'decline') {
-        // Decline the call through CallManager
-        CallManager.instance.declineCall(call).catchError((e) {
-          print('Error declining call from notification: $e');
-        });
+        if (action == 'answer') {
+          // Answer the call through CallManager
+          CallManager.instance.answerCall(call).catchError((e) {
+            print('Error answering call from notification: $e');
+          });
+        } else if (action == 'decline') {
+          // Decline the call through CallManager
+          CallManager.instance.declineCall(call).catchError((e) {
+            print('Error declining call from notification: $e');
+          });
+        }
       }
+    } catch (e) {
+      print('Error handling call action: $e');
     }
-  } catch (e) {
-    print('Error handling call action: $e');
   }
-}
-=======
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   // Handle message when app is opened from notification
   static void _handleMessageOpenedApp(RemoteMessage message) {
     print('App opened from notification: ${message.data}');
@@ -470,7 +354,6 @@ static void _handleCallAction(Map<String, dynamic> data, String action) {
   }
 
   // Navigate to appropriate screen based on notification data
-<<<<<<< HEAD
   static void _navigateFromNotification(Map<String, dynamic> data) {
     try {
       final type = data['type'] as String?;
@@ -493,7 +376,7 @@ static void _handleCallAction(Map<String, dynamic> data, String action) {
           final call = Call(
             id: callId,
             callerId:
-                callerId, // This should be the user ID, but we're using secure ID for now
+            callerId, // This should be the user ID, but we're using secure ID for now
             receiverId: '', // Will be filled by CallManager
             type: callType,
             status: CallStatus.incoming,
@@ -546,56 +429,6 @@ static void _handleCallAction(Map<String, dynamic> data, String action) {
   }
 
   // UPDATED: Send push notification using service account
-=======
-static void _navigateFromNotification(Map<String, dynamic> data) {
-  try {
-    final type = data['type'] as String?;
-    
-    if (type == 'message') {
-      final senderId = data['senderId'] as String?;
-      if (senderId != null) {
-        // Navigate to chat screen with sender using the global navigator key
-        print('Navigating to chat with: $senderId');
-        
-        // Get the current context from the navigator
-        final BuildContext? context = navigatorKey.currentContext;
-        
-        if (context != null) {
-          // Option 1: Using named routes
-          navigatorKey.currentState?.pushNamed(
-            '/chat',
-            arguments: {'senderId': senderId},
-          );
-          
-          // Option 2: Direct navigation (alternative to named routes)
-          // Navigator.of(context).push(
-          //   MaterialPageRoute(
-          //     builder: (context) => ChatScreen(senderId: senderId),
-          //   ),
-          // );
-        } else {
-          print('Navigator context is null, cannot navigate');
-        }
-      }
-    } else if (type == 'contact_request') {
-      final requesterId = data['requesterId'] as String?;
-      if (requesterId != null) {
-        print('Navigating to contact request from: $requesterId');
-        navigatorKey.currentState?.pushNamed(
-          '/contact-requests',
-          arguments: {'requesterId': requesterId},
-        );
-      }
-    }
-    // Add more notification types as needed
-    
-  } catch (e) {
-    print('Error navigating from notification: $e');
-  }
-}
-
-  // Send push notification to a specific user
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   static Future<bool> sendPushNotification({
     required String token,
     required String title,
@@ -603,7 +436,6 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
     Map<String, dynamic>? data,
   }) async {
     try {
-<<<<<<< HEAD
       // Get access token using service account
       final accessToken = await _getAccessToken();
       if (accessToken == null) {
@@ -616,7 +448,7 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
           'token': token,
           'notification': {'title': title, 'body': body},
           'data':
-              data?.map((key, value) => MapEntry(key, value.toString())) ?? {},
+          data?.map((key, value) => MapEntry(key, value.toString())) ?? {},
           'android': {
             'priority': 'high',
             'notification': {
@@ -641,43 +473,15 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
           'Authorization': 'Bearer $accessToken',
         },
         body: json.encode(message),
-=======
-      // Replace with your actual FCM server key
-      const String serverKey = 'YOUR_FCM_SERVER_KEY_HERE';
-      
-      final Map<String, dynamic> notification = {
-        'to': token,
-        'notification': {
-          'title': title,
-          'body': body,
-          'sound': 'default',
-        },
-        'data': data ?? {},
-        'priority': 'high',
-        'content_available': true,
-      };
-
-      final response = await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'key=$serverKey',
-        },
-        body: json.encode(notification),
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
       );
 
       if (response.statusCode == 200) {
         print('Push notification sent successfully');
         return true;
       } else {
-<<<<<<< HEAD
         print(
           'Failed to send push notification: ${response.statusCode} - ${response.body}',
         );
-=======
-        print('Failed to send push notification: ${response.statusCode} - ${response.body}');
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
         return false;
       }
     } catch (e) {
@@ -686,7 +490,6 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
     }
   }
 
-<<<<<<< HEAD
   // Get OAuth2 access token using service account
   static Future<String?> _getAccessToken() async {
     try {
@@ -713,8 +516,6 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
     }
   }
 
-=======
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
   // Get current FCM token
   static String? get fcmToken => _fcmToken;
 
@@ -751,10 +552,9 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
   }
 
   // Handle background message (static method for Firebase)
-<<<<<<< HEAD
   static Future<void> firebaseMessagingBackgroundHandler(
-    RemoteMessage message,
-  ) async {
+      RemoteMessage message,
+      ) async {
     print('Handling background message: ${message.messageId}');
 
     // Process the message here if needed
@@ -764,15 +564,3 @@ static void _navigateFromNotification(Map<String, dynamic> data) {
     // unless you need custom processing
   }
 }
-=======
-  static Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-    print('Handling background message: ${message.messageId}');
-    
-    // Process the message here if needed
-    // For example, you could update local database, etc.
-    
-    // The notification will be handled automatically by FCM
-    // unless you need custom processing
-  }
-}
->>>>>>> 820952c0717f9cdac2a2dbc29d315ff596adbca7
