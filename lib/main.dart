@@ -44,24 +44,24 @@ void main() async {
   }
 
   // Hide status bar + navigation bar (immersive fullscreen)
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  //SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   // Initialize screen protection
-  await _initializeScreenProtection();
+  //await _initializeScreenProtection();
 
   runApp(const SymmeApp());
 }
 
 // Method to initialize screen protection
-Future<void> _initializeScreenProtection() async {
-  const platform = MethodChannel('com.gatiella.symmeapp/screen_protection');
-  try {
-    await platform.invokeMethod('enableScreenProtection');
-    print('Screen protection enabled');
-  } on PlatformException catch (e) {
-    print("Failed to enable screen protection: '${e.message}'.");
-  }
-}
+// Future<void> _initializeScreenProtection() async {
+//   const platform = MethodChannel('com.gatiella.symmeapp/screen_protection');
+//   try {
+//     await platform.invokeMethod('enableScreenProtection');
+//     print('Screen protection enabled');
+//   } on PlatformException catch (e) {
+//     print("Failed to enable screen protection: '${e.message}'.");
+//   }
+// }
 
 class SymmeApp extends StatefulWidget {
   const SymmeApp({super.key});

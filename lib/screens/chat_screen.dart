@@ -1009,11 +1009,12 @@ Future<void> _sendImageMessage(String imagePath) async {
   setState(() => _isSending = true);
   
   try {
-    // For now, send as text with image indicator
-    // In production, you'd upload the image and send the URL
+    // Get proper file name
+    final fileName = imagePath.split('/').last;
+    
     final success = await FirebaseMessageService.sendMessage(
       receiverSecureId: widget.otherUserSecureId,
-      content: 'Photo: ${imagePath.split('/').last}',
+      content: fileName.isNotEmpty ? fileName : 'Image',
       type: MessageType.image,
       expiresInSeconds: _disappearingTimer > 0 ? _disappearingTimer : null,
     );
@@ -1041,9 +1042,13 @@ Future<void> _sendFileMessage(String filePath, String fileName) async {
     final fileSize = await file.length();
     final fileSizeKB = (fileSize / 1024).round();
     
+    final content = fileName.isNotEmpty 
+        ? '$fileName (${fileSizeKB}KB)'
+        : 'File attachment (${fileSizeKB}KB)';
+    
     final success = await FirebaseMessageService.sendMessage(
       receiverSecureId: widget.otherUserSecureId,
-      content: '$fileName (${fileSizeKB}KB)',
+      content: content,
       type: MessageType.file,
       expiresInSeconds: _disappearingTimer > 0 ? _disappearingTimer : null,
     );

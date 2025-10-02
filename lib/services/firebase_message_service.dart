@@ -229,38 +229,43 @@ class FirebaseMessageService {
             print('Message senderId: ${messageData['senderId']}, currentUserId: $currentUserId');
 
             // FIXED: Decrypt message if it's encrypted AND we're the receiver
-            if (messageData['isEncrypted'] == true && messageData['senderId'] != currentUserId) {
-              print('Message needs decryption...');
+                if (messageData['isEncrypted'] == true && messageData['senderId'] != currentUserId) {
+                  print('Message needs decryption...');
 
-              if (privateKey != null && messageData['encryptedCombination'] != null && messageData['iv'] != null) {
-                try {
-                  final decryptedContent = CryptoService.decryptMessageWithCombination(
-                    messageData['content'],
-                    messageData['encryptedCombination'],
-                    privateKey,
-                  );
+                  if (privateKey != null && messageData['encryptedCombination'] != null && messageData['iv'] != null) {
+                    try {
+                      final decryptedContent = CryptoService.decryptMessageWithCombination(
+                        messageData['content'],
+                        messageData['encryptedCombination'],
+                        privateKey,
+                      );
 
-                  if (decryptedContent != null && decryptedContent.isNotEmpty) {
-                    messageData['content'] = decryptedContent;
-                    messageData['isEncrypted'] = false; // Mark as decrypted for display
-                    print('✅ Decryption successful');
+                      if (decryptedContent != null && decryptedContent.isNotEmpty) {
+                        messageData['content'] = decryptedContent;
+                        messageData['isEncrypted'] = false;
+                        print('✅ Decryption successful');
+                      } else {
+                        messageData['content'] = 'Message cannot be displayed - decryption failed';
+                        print('❌ Decryption returned null/empty');
+                      }
+                    } catch (e) {
+                      messageData['content'] = 'This message may be corrupted or uses an unsupported encryption method';
+                      print('❌ Decryption exception: $e');
+                    }
                   } else {
-                    messageData['content'] = '[Failed to decrypt message]';
-                    print('❌ Decryption returned null/empty');
+                    messageData['content'] = 'Message cannot be displayed - missing decryption keys';
+                    print('❌ Missing privateKey, encryptedCombination, or IV');
                   }
-                } catch (e) {
-                  messageData['content'] = '[Decryption error]';
-                  print('❌ Decryption exception: $e');
+                } else if (messageData['content'] == null || messageData['content'].toString().trim().isEmpty) {
+                  // Handle empty messages
+                  if (messageData['type'] == MessageType.image.index) {
+                    messageData['content'] = 'Photo';
+                  } else if (messageData['type'] == MessageType.file.index) {
+                    messageData['content'] = 'File attachment';
+                  } else {
+                    messageData['content'] = 'Empty message';
+                  }
                 }
-              } else {
-                messageData['content'] = '[Missing decryption data]';
-                print('❌ Missing privateKey, encryptedCombination, or IV');
-                print('privateKey exists: ${privateKey != null}');
-                print('encryptedCombination exists: ${messageData['encryptedCombination'] != null}');
-                print('iv exists: ${messageData['iv'] != null}');
-              }
-            }
-
             // Create message object
             final message = Message.fromJson(messageData);
             messages.add(message);

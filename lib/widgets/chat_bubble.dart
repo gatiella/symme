@@ -129,7 +129,7 @@ class ChatBubble extends StatelessWidget {
               color: textColor.withOpacity(0.7),
             ),
           ),
-        if (message.expiresInSeconds != null)
+        if (message.expiresAt  != null)
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Icon(
@@ -165,10 +165,53 @@ class ChatBubble extends StatelessWidget {
 
 Widget _buildTextMessage(Color textColor) {
   // Check for various error states
-  final isDecryptionError = message.content.contains('[Failed to decrypt message]') ||
+  final isDecryptionError = message.content.contains('Message cannot be displayed') ||
+      message.content.contains('This message may be corrupted') ||
+      message.content.contains('missing decryption keys') ||
+      message.content.contains('decryption failed') ||
+      message.content.contains('[Failed to decrypt message]') ||
       message.content.contains('[Decryption error]') ||
       message.content.contains('[Missing decryption data]') ||
       message.content.contains('[Message parsing failed]');
+
+  // Handle empty messages for different types
+  if (message.content.isEmpty || message.content == '[Empty message]') {
+    String displayContent;
+    IconData icon;
+    
+    switch (message.type) {
+      case MessageType.image:
+        displayContent = 'Photo';
+        icon = Icons.image;
+        break;
+      case MessageType.file:
+        displayContent = 'File attachment';
+        icon = Icons.attach_file;
+        break;
+      case MessageType.voice:
+        displayContent = 'Voice message';
+        icon = Icons.mic;
+        break;
+      default:
+        displayContent = 'Empty message';
+        icon = Icons.message;
+    }
+    
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: textColor.withOpacity(0.7)),
+        const SizedBox(width: 8),
+        Text(
+          displayContent,
+          style: TextStyle(
+            color: textColor.withOpacity(0.7),
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
 
   if (isDecryptionError) {
     return Column(

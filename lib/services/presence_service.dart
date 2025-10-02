@@ -1,4 +1,3 @@
-// services/presence_service.dart
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,13 +5,13 @@ import '../services/storage_service.dart';
 
 class PresenceService {
   static final FirebaseDatabase _database = FirebaseDatabase.instance;
-  static StreamSubscription<DatabaseEvent>? _presenceSubscription;
   static StreamSubscription<DatabaseEvent>? _connectionSubscription;
   static Timer? _heartbeatTimer;
   static bool _isInitialized = false;
+  static String? _currentUserId;
 
-  // Online threshold - users are considered offline after 2 minutes of inactivity
-  static const int _onlineThresholdMinutes = 2;
+  // Online threshold - users are considered offline after 3 minutes of inactivity
+  static const int _onlineThresholdMinutes = 3;
 
   static Future<void> initialize() async {
     if (_isInitialized) return;
@@ -21,11 +20,11 @@ class PresenceService {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
-      // Monitor connection state
-      _monitorConnection(currentUser.uid);
+      _currentUserId = currentUser.uid;
+      print('Initializing presence service for user: $_currentUserId');
 
-      // Start presence updates
-      await _startPresenceUpdates(currentUser.uid);
+      // Monitor connection state
+      _monitorConnection();
 
       _isInitialized = true;
       print('Presence service initialized');
@@ -34,16 +33,18 @@ class PresenceService {
     }
   }
 
-  static void _monitorConnection(String userId) {
+  static void _monitorConnection() {
     final connectedRef = _database.ref('.info/connected');
 
     _connectionSubscription = connectedRef.onValue.listen((event) {
       final connected = event.snapshot.value as bool? ?? false;
+      print('Firebase connection status: $connected');
 
-      if (connected) {
-        print('Connected to Firebase');
-        _setUserOnline(userId);
-        _startHeartbeat(userId);
+      if (connected && _currentUserId != null) {
+        print('Connected to Firebase - setting user online');
+        _setUserOnline();
+        _setupOnDisconnect();
+        _startHeartbeat();
       } else {
         print('Disconnected from Firebase');
         _heartbeatTimer?.cancel();
@@ -51,55 +52,70 @@ class PresenceService {
     });
   }
 
-  static Future<void> _startPresenceUpdates(String userId) async {
-    // Set user online
-    await _setUserOnline(userId);
+  static Future<void> _setupOnDisconnect() async {
+    if (_currentUserId == null) return;
 
-    // Setup offline trigger when app disconnects
-    final userPresenceRef = _database.ref('presence/$userId');
-    await userPresenceRef.onDisconnect().update({
-      'online': false,
-      'lastSeen': ServerValue.timestamp,
-    });
-
-    // Start periodic heartbeat
-    _startHeartbeat(userId);
+    try {
+      // Set up what happens when user disconnects
+      final userPresenceRef = _database.ref('presence/$_currentUserId');
+      await userPresenceRef.onDisconnect().update({
+        'online': false,
+        'lastSeen': ServerValue.timestamp,
+        'disconnectedAt': ServerValue.timestamp,
+      });
+      print('OnDisconnect handler set up');
+    } catch (e) {
+      print('Error setting up onDisconnect: $e');
+    }
   }
 
-  static void _startHeartbeat(String userId) {
+  static void _startHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(
       const Duration(minutes: 1),
-      (_) => _setUserOnline(userId),
+      (_) {
+        print('Heartbeat - updating presence');
+        _setUserOnline();
+      },
     );
+    print('Heartbeat timer started');
   }
 
-  static Future<void> _setUserOnline(String userId) async {
+  static Future<void> _setUserOnline() async {
+    if (_currentUserId == null) return;
+
     try {
       final userSecureId = await StorageService.getUserSecureId();
-      if (userSecureId == null) return;
+      if (userSecureId == null) {
+        print('No secure ID found, cannot set user online');
+        return;
+      }
 
-      await _database.ref('presence/$userId').update({
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await _database.ref('presence/$_currentUserId').set({
         'online': true,
-        'lastSeen': ServerValue.timestamp,
+        'lastSeen': now,
         'secureId': userSecureId,
+        'updatedAt': ServerValue.timestamp,
       });
+      print('User set online with lastSeen: $now');
     } catch (e) {
       print('Error setting user online: $e');
     }
   }
 
   static Future<void> setUserOffline() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
+    if (_currentUserId == null) return;
 
-      await _database.ref('presence/${currentUser.uid}').update({
+    try {
+      await _database.ref('presence/$_currentUserId').update({
         'online': false,
         'lastSeen': ServerValue.timestamp,
+        'offlineAt': ServerValue.timestamp,
       });
 
       _heartbeatTimer?.cancel();
+      print('User set offline manually');
     } catch (e) {
       print('Error setting user offline: $e');
     }
@@ -109,79 +125,86 @@ class PresenceService {
   static Future<bool> isUserOnline(String userId) async {
     try {
       final snapshot = await _database.ref('presence/$userId').once();
-      final data = snapshot.snapshot.value as Map<dynamic, dynamic>?;
+      if (!snapshot.snapshot.exists) {
+        print('No presence data for user: $userId');
+        return false;
+      }
 
-      if (data == null) return false;
-
+      final data = snapshot.snapshot.value as Map<dynamic, dynamic>;
       final isOnline = data['online'] as bool? ?? false;
-      if (!isOnline) return false;
-
-      // Check last seen time
       final lastSeen = data['lastSeen'] as int?;
-      if (lastSeen == null) return false;
 
+      print('User $userId - online: $isOnline, lastSeen: $lastSeen');
+
+      if (!isOnline || lastSeen == null) return false;
+
+      // Check if last seen is within threshold
       final lastSeenTime = DateTime.fromMillisecondsSinceEpoch(lastSeen);
       final timeDiff = DateTime.now().difference(lastSeenTime);
+      final isRecentlyActive = timeDiff.inMinutes < _onlineThresholdMinutes;
 
-      // Consider offline if last seen more than threshold
-      return timeDiff.inMinutes < _onlineThresholdMinutes;
+      print('Time difference: ${timeDiff.inMinutes} minutes, threshold: $_onlineThresholdMinutes');
+      return isRecentlyActive;
     } catch (e) {
       print('Error checking user online status: $e');
       return false;
     }
   }
 
-  // Get user's last seen time
-  static Future<DateTime?> getUserLastSeen(String userId) async {
+  // Check if user is online by secure ID
+  static Future<bool> isUserOnlineBySecureId(String secureId) async {
     try {
-      final snapshot = await _database.ref('presence/$userId').once();
-      final data = snapshot.snapshot.value as Map<dynamic, dynamic>?;
+      // Query all users to find the one with matching secure ID
+      final snapshot = await _database.ref('presence').once();
+      if (!snapshot.snapshot.exists) return false;
 
-      if (data == null) return null;
+      final data = snapshot.snapshot.value as Map<dynamic, dynamic>;
 
-      final lastSeen = data['lastSeen'] as int?;
-      if (lastSeen == null) return null;
+      for (final entry in data.entries) {
+        final userData = entry.value as Map<dynamic, dynamic>;
+        final userSecureId = userData['secureId'] as String?;
 
-      return DateTime.fromMillisecondsSinceEpoch(lastSeen);
+        if (userSecureId == secureId) {
+          final userId = entry.key as String;
+          return await isUserOnline(userId);
+        }
+      }
+
+      return false;
     } catch (e) {
-      print('Error getting user last seen: $e');
-      return null;
+      print('Error checking user online by secure ID: $e');
+      return false;
     }
   }
 
   // Listen to user's online status changes
   static Stream<bool> listenToUserPresence(String userId) {
-    final controller = StreamController<bool>();
+    final controller = StreamController<bool>.broadcast();
 
     final presenceRef = _database.ref('presence/$userId');
     StreamSubscription<DatabaseEvent>? subscription;
 
     subscription = presenceRef.onValue.listen(
       (event) {
-        final data = event.snapshot.value as Map<dynamic, dynamic>?;
-
-        if (data == null) {
+        if (!event.snapshot.exists) {
           controller.add(false);
           return;
         }
 
+        final data = event.snapshot.value as Map<dynamic, dynamic>;
         final isOnline = data['online'] as bool? ?? false;
-        if (!isOnline) {
-          controller.add(false);
-          return;
-        }
-
-        // Check last seen time
         final lastSeen = data['lastSeen'] as int?;
-        if (lastSeen == null) {
+
+        if (!isOnline || lastSeen == null) {
           controller.add(false);
           return;
         }
 
         final lastSeenTime = DateTime.fromMillisecondsSinceEpoch(lastSeen);
         final timeDiff = DateTime.now().difference(lastSeenTime);
+        final isRecentlyActive = timeDiff.inMinutes < _onlineThresholdMinutes;
 
-        controller.add(timeDiff.inMinutes < _onlineThresholdMinutes);
+        controller.add(isRecentlyActive);
       },
       onError: (error) {
         print('Error listening to presence: $error');
@@ -196,67 +219,28 @@ class PresenceService {
     return controller.stream;
   }
 
-  // Get all online users (for debugging)
-  static Future<Map<String, Map<String, dynamic>>> getOnlineUsers() async {
+  // Get user's last seen time
+  static Future<DateTime?> getUserLastSeen(String userId) async {
     try {
-      final snapshot = await _database.ref('presence').once();
-      final data = snapshot.snapshot.value as Map<dynamic, dynamic>?;
+      final snapshot = await _database.ref('presence/$userId/lastSeen').once();
+      final lastSeen = snapshot.snapshot.value as int?;
 
-      if (data == null) return {};
-
-      final onlineUsers = <String, Map<String, dynamic>>{};
-      final now = DateTime.now();
-
-      data.forEach((userId, userData) {
-        final userMap = userData as Map<dynamic, dynamic>;
-        final isOnline = userMap['online'] as bool? ?? false;
-        final lastSeen = userMap['lastSeen'] as int?;
-
-        if (isOnline && lastSeen != null) {
-          final lastSeenTime = DateTime.fromMillisecondsSinceEpoch(lastSeen);
-          final timeDiff = now.difference(lastSeenTime);
-
-          if (timeDiff.inMinutes < _onlineThresholdMinutes) {
-            onlineUsers[userId.toString()] = {
-              'online': true,
-              'lastSeen': lastSeenTime,
-              'secureId': userMap['secureId'],
-            };
-          }
-        }
-      });
-
-      return onlineUsers;
+      if (lastSeen == null) return null;
+      return DateTime.fromMillisecondsSinceEpoch(lastSeen);
     } catch (e) {
-      print('Error getting online users: $e');
-      return {};
-    }
-  }
-
-  // Check if user is online by secure ID
-  static Future<bool> isUserOnlineBySecureId(String secureId) async {
-    try {
-      // First find the user ID from secure ID
-      final users = await getOnlineUsers();
-
-      for (final entry in users.entries) {
-        final userData = entry.value;
-        if (userData['secureId'] == secureId) {
-          return true; // Already filtered for online users
-        }
-      }
-
-      return false;
-    } catch (e) {
-      print('Error checking user online by secure ID: $e');
-      return false;
+      print('Error getting user last seen: $e');
+      return null;
     }
   }
 
   static void dispose() {
+    print('Disposing presence service');
     _heartbeatTimer?.cancel();
-    _presenceSubscription?.cancel();
     _connectionSubscription?.cancel();
+    if (_currentUserId != null) {
+      setUserOffline();
+    }
     _isInitialized = false;
+    _currentUserId = null;
   }
 }

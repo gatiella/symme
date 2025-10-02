@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:symme/services/presence_service.dart';
 import '../services/firebase_message_service.dart';
 import '../utils/helpers.dart';
 
@@ -238,148 +239,201 @@ class _ChatTabState extends State<ChatTab> {
     );
   }
 
-  Widget _buildChatRoomItem(Map<String, dynamic> chatRoom, ThemeData theme) {
-    final otherUserSecureId = chatRoom['otherUserSecureId'] as String? ?? '';
-    final displayName = chatRoom['displayName'] as String? ?? otherUserSecureId;
-    final lastMessage = chatRoom['lastMessage'] as String? ?? 'No messages yet';
-    final lastMessageTime = chatRoom['lastMessageTime'] as int?;
-    final isOnline = chatRoom['isOnline'] as bool? ?? false;
-    final unreadCount = chatRoom['unreadCount'] as int? ?? 0;
+Widget _buildChatRoomItem(Map<String, dynamic> chatRoom, ThemeData theme) {
+  final otherUserSecureId = chatRoom['otherUserSecureId'] as String? ?? '';
+  
+  // Use FutureBuilder to check online status
+  return FutureBuilder<bool>(
+    future: PresenceService.isUserOnlineBySecureId(otherUserSecureId),
+    builder: (context, snapshot) {
+      final isOnline = snapshot.data ?? false;
+      
+      // Extract other chat room data
+      final displayName = chatRoom['displayName'] as String? ?? otherUserSecureId;
+      final lastMessage = chatRoom['lastMessage'] as String? ?? 'No messages yet';
+      final lastMessageTime = chatRoom['lastMessageTime'] as int?;
+      final unreadCount = chatRoom['unreadCount'] as int? ?? 0;
 
-    String timeString = '';
-    if (lastMessageTime != null) {
-      final messageDate = DateTime.fromMillisecondsSinceEpoch(lastMessageTime);
-      final now = DateTime.now();
-      final difference = now.difference(messageDate);
+      String timeString = '';
+      if (lastMessageTime != null) {
+        final messageDate = DateTime.fromMillisecondsSinceEpoch(lastMessageTime);
+        final now = DateTime.now();
+        final difference = now.difference(messageDate);
 
-      if (difference.inDays > 0) {
-        timeString = '${difference.inDays}d ago';
-      } else if (difference.inHours > 0) {
-        timeString = '${difference.inHours}h ago';
-      } else if (difference.inMinutes > 0) {
-        timeString = '${difference.inMinutes}m ago';
-      } else {
-        timeString = 'Now';
+        if (difference.inDays > 0) {
+          timeString = '${difference.inDays}d ago';
+        } else if (difference.inHours > 0) {
+          timeString = '${difference.inHours}h ago';
+        } else if (difference.inMinutes > 0) {
+          timeString = '${difference.inMinutes}m ago';
+        } else {
+          timeString = 'Now';
+        }
       }
-    }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      color: theme.colorScheme.surface,
-      elevation: unreadCount > 0 ? 4 : 2,
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-              child: Text(
-                displayName.isNotEmpty
-                    ? displayName.substring(0, 2).toUpperCase()
-                    : 'U',
-                style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: theme.colorScheme.surface,
+        elevation: unreadCount > 0 ? 4 : 2,
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: Stack(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                child: Text(
+                  displayName.isNotEmpty
+                      ? displayName.substring(0, 2).toUpperCase()
+                      : 'U',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-            ),
-            if (isOnline)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade400,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: theme.colorScheme.surface,
-                      width: 2,
+              // Online status indicator with loading state
+              if (snapshot.connectionState == ConnectionState.waiting)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 2,
+                      ),
+                    ),
+                    child: const SizedBox(
+                      width: 8,
+                      height: 8,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  ),
+                )
+              else if (isOnline)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade400,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _highlightSearchTerm(displayName, widget.searchQuery),
-                style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontWeight: unreadCount > 0
-                      ? FontWeight.bold
-                      : FontWeight.w600,
-                  fontSize: 16,
-                  fontFamily: 'monospace',
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (unreadCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+            ],
+          ),
+          title: Row(
+            children: [
+              Expanded(
                 child: Text(
-                  unreadCount > 99 ? '99+' : unreadCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                  _highlightSearchTerm(displayName, widget.searchQuery),
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: unreadCount > 0
+                        ? FontWeight.bold
+                        : FontWeight.w600,
+                    fontSize: 16,
+                    fontFamily: 'monospace',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (unreadCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              _highlightSearchTerm(lastMessage, widget.searchQuery),
-              style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-                fontSize: 14,
-                fontWeight: unreadCount > 0
-                    ? FontWeight.w500
-                    : FontWeight.normal,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (timeString.isNotEmpty) ...[
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               const SizedBox(height: 4),
               Text(
-                timeString,
+                _highlightSearchTerm(lastMessage, widget.searchQuery),
                 style: TextStyle(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  fontSize: 12,
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  fontSize: 14,
+                  fontWeight: unreadCount > 0
+                      ? FontWeight.w500
+                      : FontWeight.normal,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
+              if (timeString.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      timeString,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        fontSize: 12,
+                      ),
+                    ),
+                    // Add online status text for better accessibility
+                    if (snapshot.connectionState != ConnectionState.waiting) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        isOnline ? '• Online' : '• Offline',
+                        style: TextStyle(
+                          color: isOnline 
+                              ? Colors.green.shade600 
+                              : theme.colorScheme.onSurface.withOpacity(0.4),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
+          trailing: Icon(
+            Icons.chevron_right,
+            color: theme.colorScheme.onSurface.withOpacity(0.4),
+          ),
+          onTap: () {
+            if (otherUserSecureId.isNotEmpty) {
+              widget.onStartChat(otherUserSecureId);
+            }
+          },
+          onLongPress: () => _showChatOptions(chatRoom),
         ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: theme.colorScheme.onSurface.withOpacity(0.4),
-        ),
-        onTap: () {
-          if (otherUserSecureId.isNotEmpty) {
-            widget.onStartChat(otherUserSecureId);
-          }
-        },
-        onLongPress: () => _showChatOptions(chatRoom),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   String _highlightSearchTerm(String text, String? searchQuery) {
     // For now, just return the text as is
